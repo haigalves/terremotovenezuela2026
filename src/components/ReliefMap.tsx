@@ -20,6 +20,7 @@ import type {
   LayerVisibility,
   VerifiedSituation,
 } from "@/lib/types";
+import type { OfficialFeedItem } from "@/lib/official-types";
 
 function createPinIcon(color: string, label: string) {
   return L.divIcon({
@@ -36,8 +37,9 @@ function createPinIcon(color: string, label: string) {
   });
 }
 
-const requestIcon = createPinIcon("#ea580c", t.legendRequest);
-const videoIcon = createPinIcon("#2563eb", t.legendVideo);
+const requestIcon = createPinIcon("#ffcc00", t.legendRequest);
+const videoIcon = createPinIcon("#00247d", t.legendVideo);
+const officialIcon = createPinIcon("#cf142b", t.legendOfficial);
 
 function formatDate(iso: string) {
   try {
@@ -90,6 +92,7 @@ function FlyToPin({
 export interface ReliefMapProps {
   requests: CheckRequest[];
   videos: VerifiedSituation[];
+  officialEvents: OfficialFeedItem[];
   layers: LayerVisibility;
   pickMode: boolean;
   pickedLocation: { lat: number; lng: number } | null;
@@ -100,6 +103,7 @@ export interface ReliefMapProps {
 export default function ReliefMap({
   requests,
   videos,
+  officialEvents,
   layers,
   pickMode,
   pickedLocation,
@@ -117,13 +121,13 @@ export default function ReliefMap({
       <MapContainer
         center={center}
         zoom={8}
-        className="h-full w-full rounded-lg"
+        className="h-full w-full"
         scrollWheelZoom
         aria-labelledby={mapLabelId}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
 
         <FlyToPin target={flyToTarget} />
@@ -132,7 +136,7 @@ export default function ReliefMap({
         <CircleMarker
           center={[EPICENTER.lat, EPICENTER.lng]}
           radius={10}
-          pathOptions={{ color: "#7f1d1d", fillColor: "#dc2626", fillOpacity: 0.85 }}
+          pathOptions={{ color: "#ffcc00", fillColor: "#cf142b", fillOpacity: 0.9 }}
         >
           <Popup>
             <strong>{t.epicenter}</strong>
@@ -140,6 +144,43 @@ export default function ReliefMap({
             {EPICENTER.label}
           </Popup>
         </CircleMarker>
+
+        {layers.official &&
+          officialEvents
+            .filter((e) => e.lat != null && e.lng != null)
+            .map((event) => (
+              <Marker
+                key={event.id}
+                position={[event.lat!, event.lng!]}
+                icon={officialIcon}
+              >
+                <Popup>
+                  <div className="max-w-xs space-y-1 text-sm">
+                    <p className="font-semibold">{event.title}</p>
+                    <p className="text-xs font-bold uppercase text-red-700">
+                      {event.source}
+                      {event.magnitude != null && ` · M${event.magnitude.toFixed(1)}`}
+                    </p>
+                    {event.place && <p>{event.place}</p>}
+                    {event.depthKm != null && (
+                      <p className="text-xs text-gray-600">
+                        Profundidad: {event.depthKm.toFixed(1)} km
+                      </p>
+                    )}
+                    <p>
+                      <a
+                        href={event.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-700 underline"
+                      >
+                        {t.openSource}
+                      </a>
+                    </p>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
 
         {layers.requests &&
           requests.map((req) => (
@@ -236,7 +277,7 @@ export default function ReliefMap({
           role="status"
           aria-live="polite"
         >
-          <span className="rounded-full bg-emerald-800 px-4 py-2 text-sm font-medium text-white shadow-lg">
+          <span className="rounded-full bg-[var(--ve-blue)] px-4 py-2 text-sm font-medium text-[var(--ve-yellow)] shadow-lg ring-2 ring-[var(--ve-yellow)]">
             {t.clickMapHint}
           </span>
         </div>

@@ -48,4 +48,5 @@ export interface MapPin {
 export type LayerVisibility = {
   requests: boolean;
   videos: boolean;
+  official: boolean;
 };

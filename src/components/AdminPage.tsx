@@ -97,15 +97,16 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="mx-auto min-h-screen max-w-3xl px-4 py-8">
+    <div className="mx-auto min-h-screen max-w-3xl bg-[var(--ve-blue-dark)] px-4 py-8 text-white">
+      <div className="ve-tricolor mb-4 rounded" aria-hidden />
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">{t.adminTitle}</h1>
-          <p className="mt-1 text-sm text-slate-600">{t.adminSubtitle}</p>
+          <h1 className="text-2xl font-bold text-[var(--ve-yellow)]">{t.adminTitle}</h1>
+          <p className="mt-1 text-sm text-white/70">{t.adminSubtitle}</p>
         </div>
         <Link
           href="/"
-          className="text-sm font-medium text-blue-700 underline hover:text-blue-900"
+          className="text-sm font-medium text-[var(--ve-yellow)] underline hover:text-white"
         >
           {t.adminBackToMap}
         </Link>

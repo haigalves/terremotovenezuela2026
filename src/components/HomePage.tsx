@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReliefMapLoader from "@/components/ReliefMapLoader";
+import OfficialFeed from "@/components/OfficialFeed";
 import { CARACAS, EPICENTER } from "@/lib/constants";
 import { t } from "@/lib/i18n";
+import type { OfficialFeedItem } from "@/lib/official-types";
 import type {
   CheckRequest,
   LayerVisibility,
@@ -12,7 +14,8 @@ import type {
 } from "@/lib/types";
 
 type FormMode = "request" | "video" | null;
-type ViewMode = "split" | "map" | "list";
+type SidebarTab = "official" | "community";
+type ViewMode = "split" | "map" | "feed";
 
 function formatDate(iso: string) {
   try {
@@ -42,9 +45,12 @@ export default function HomePage() {
   const [layers, setLayers] = useState<LayerVisibility>({
     requests: true,
     videos: true,
+    official: true,
   });
+  const [officialEvents, setOfficialEvents] = useState<OfficialFeedItem[]>([]);
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("official");
   const [formMode, setFormMode] = useState<FormMode>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("split");
+  const [viewMode, setViewMode] = useState<ViewMode>("feed");
   const [pickedLocation, setPickedLocation] = useState<{
     lat: number;
     lng: number;
@@ -61,6 +67,17 @@ export default function HomePage() {
 
   const panelRef = useRef<HTMLElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
+
+  const loadOfficial = useCallback(async () => {
+    try {
+      const res = await fetch("/api/official-feed", { cache: "no-store" });
+      if (!res.ok) return;
+      const json = await res.json();
+      setOfficialEvents(json.items ?? []);
+    } catch {
+      setOfficialEvents([]);
+    }
+  }, []);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -83,9 +100,13 @@ export default function HomePage() {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 60_000);
+    loadOfficial();
+    const interval = setInterval(() => {
+      loadData();
+      loadOfficial();
+    }, 60_000);
     return () => clearInterval(interval);
-  }, [loadData]);
+  }, [loadData, loadOfficial]);
 
   useEffect(() => {
     if (!formMode) return;
@@ -199,6 +220,13 @@ export default function HomePage() {
     }
   }
 
+  function focusOfficialEvent(item: OfficialFeedItem) {
+    if (item.lat == null || item.lng == null) return;
+    setFlyToTarget({ lat: item.lat, lng: item.lng });
+    setViewMode("split");
+  }
+
+  const visibleOfficial = layers.official ? officialEvents : [];
   const visibleRequests = layers.requests ? requests : [];
   const visibleVideos = layers.videos ? videos : [];
 
@@ -206,20 +234,22 @@ export default function HomePage() {
     <>
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[2000] focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-slate-900 focus:shadow-lg"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[2000] focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-[var(--ve-blue-dark)] focus:shadow-lg"
       >
         {t.skipToContent}
       </a>
 
-      <header className="border-b border-amber-200 bg-amber-950 text-amber-50">
-        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="ve-tricolor" aria-hidden />
+
+      <header className="bg-[var(--ve-blue)] text-white shadow-md">
+        <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+            <h1 className="text-xl font-bold tracking-tight text-[var(--ve-yellow)] sm:text-2xl">
               {t.headerTitle}
             </h1>
-            <p className="text-sm text-amber-100">{t.headerSubtitle}</p>
+            <p className="text-sm text-white/85">{t.headerSubtitle}</p>
           </div>
-          <p className="max-w-xl text-sm text-amber-100/90" role="note">
+          <p className="max-w-xl text-xs text-white/75 sm:text-sm" role="note">
             {t.disclaimer}
           </p>
         </div>
@@ -227,7 +257,7 @@ export default function HomePage() {
 
       {!configured && (
         <div
-          className="border-b border-amber-300 bg-amber-100 px-4 py-3 text-center text-sm text-amber-950"
+          className="border-b border-[var(--ve-yellow)] bg-[var(--ve-yellow)] px-4 py-2 text-center text-sm font-medium text-[var(--ve-blue-dark)]"
           role="alert"
         >
           {t.databaseNotConfigured}
@@ -236,10 +266,10 @@ export default function HomePage() {
 
       {message && !formMode && (
         <div
-          className={`border-b px-4 py-3 text-center text-sm ${
+          className={`border-b px-4 py-2 text-center text-sm ${
             message.type === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-              : "border-red-200 bg-red-50 text-red-900"
+              ? "border-[var(--ve-yellow)] bg-[var(--ve-yellow)]/20 text-[var(--ve-yellow)]"
+              : "border-[var(--ve-red)] bg-[var(--ve-red)]/20 text-white"
           }`}
           role="status"
           aria-live="polite"
@@ -250,212 +280,249 @@ export default function HomePage() {
 
       <main
         id="main-content"
-        className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 p-4 lg:flex-row"
+        className="flex min-h-0 flex-1 flex-col lg:h-[calc(100vh-5.5rem)] lg:flex-row"
       >
-        <section
-          className={`flex flex-col gap-3 lg:w-[360px] ${
+        <aside
+          className={`feed-panel flex w-full flex-col border-r border-white/10 lg:w-[380px] ${
             viewMode === "map" ? "hidden lg:flex" : "flex"
-          } ${viewMode === "list" ? "w-full" : ""}`}
-          aria-label={t.listView}
+          }`}
         >
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => openForm("request")}
-              className="rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600"
-            >
-              {t.addRequest}
-            </button>
-            <button
-              type="button"
-              onClick={() => openForm("video")}
-              className="rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-            >
-              {t.addVideo}
-            </button>
-          </div>
-
-          <fieldset className="rounded-lg border border-slate-200 bg-white p-3">
-            <legend className="px-1 text-sm font-semibold text-slate-800">
-              {t.legend}
-            </legend>
-            <div className="mt-1 flex flex-col gap-2 text-sm">
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={layers.requests}
-                  onChange={(e) =>
-                    setLayers((l) => ({ ...l, requests: e.target.checked }))
-                  }
-                  className="size-4 rounded border-slate-300"
-                />
-                <span className="inline-flex items-center gap-2">
-                  <span
-                    className="inline-block size-3 rounded-full bg-orange-600"
-                    aria-hidden
-                  />
-                  {t.legendRequest} ({requests.length})
-                </span>
-              </label>
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={layers.videos}
-                  onChange={(e) =>
-                    setLayers((l) => ({ ...l, videos: e.target.checked }))
-                  }
-                  className="size-4 rounded border-slate-300"
-                />
-                <span className="inline-flex items-center gap-2">
-                  <span
-                    className="inline-block size-3 rounded-full bg-blue-700"
-                    aria-hidden
-                  />
-                  {t.legendVideo} ({videos.length})
-                </span>
-              </label>
-            </div>
-          </fieldset>
-
           <div
-            className="flex gap-1 rounded-lg border border-slate-200 bg-white p-1 lg:hidden"
+            className="flex border-b border-white/10 lg:hidden"
             role="tablist"
             aria-label="Vista"
           >
-            {(["split", "map", "list"] as const).map((mode) => (
+            {(
+              [
+                ["feed", t.tabOfficial],
+                ["split", t.tabCommunity],
+                ["map", t.tabMap],
+              ] as const
+            ).map(([mode, label]) => (
               <button
                 key={mode}
                 type="button"
                 role="tab"
                 aria-selected={viewMode === mode}
                 onClick={() => setViewMode(mode)}
-                className={`flex-1 rounded-md px-3 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-slate-600 ${
+                className={`flex-1 px-3 py-2.5 text-xs font-bold uppercase tracking-wide ${
                   viewMode === mode
-                    ? "bg-slate-900 text-white"
-                    : "text-slate-700 hover:bg-slate-100"
+                    ? "bg-[var(--ve-red)] text-white"
+                    : "bg-[var(--ve-blue-dark)] text-white/70"
                 }`}
               >
-                {mode === "split" ? "Ambos" : mode === "map" ? t.mapView : t.listView}
+                {label}
               </button>
             ))}
           </div>
 
+          <div className="hidden border-b border-white/10 lg:flex" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={sidebarTab === "official"}
+              onClick={() => setSidebarTab("official")}
+              className={`flex-1 px-3 py-2.5 text-xs font-bold uppercase tracking-wide ${
+                sidebarTab === "official"
+                  ? "bg-[var(--ve-red)] text-white"
+                  : "text-white/70 hover:bg-white/5"
+              }`}
+            >
+              {t.tabOfficial}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={sidebarTab === "community"}
+              onClick={() => setSidebarTab("community")}
+              className={`flex-1 px-3 py-2.5 text-xs font-bold uppercase tracking-wide ${
+                sidebarTab === "community"
+                  ? "bg-[var(--ve-yellow)] text-[var(--ve-blue-dark)]"
+                  : "text-white/70 hover:bg-white/5"
+              }`}
+            >
+              {t.tabCommunity}
+            </button>
+          </div>
+
           <div
-            className="max-h-[50vh] flex-1 overflow-y-auto rounded-lg border border-slate-200 bg-white lg:max-h-none"
-            aria-busy={loading}
+            className={`flex min-h-0 flex-1 flex-col overflow-hidden ${
+              sidebarTab === "official" ? "flex" : "hidden lg:flex"
+            } ${viewMode === "feed" ? "!flex" : viewMode === "map" ? "hidden" : ""}`}
           >
-            {loading ? (
-              <p className="p-4 text-sm text-slate-600" role="status">
-                {t.loading}
-              </p>
-            ) : visibleRequests.length === 0 && visibleVideos.length === 0 ? (
-              <p className="p-4 text-sm text-slate-600">{t.noData}</p>
-            ) : (
-              <ul className="divide-y divide-slate-100">
-                {visibleRequests.map((req) => (
-                  <li key={req.id} className="p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold text-slate-900">
-                          <span
-                            className="mr-2 inline-block size-2.5 rounded-full bg-orange-600 align-middle"
-                            aria-hidden
-                          />
-                          {req.person_name}
-                        </p>
-                        <p className="mt-1 text-sm text-slate-700">
-                          {req.last_seen_area}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {t.status[req.status]} · {formatDate(req.created_at)}
-                        </p>
+            <OfficialFeed onSelectEvent={focusOfficialEvent} />
+          </div>
+
+          <div
+            className={`community-panel flex min-h-0 flex-1 flex-col overflow-hidden ${
+              sidebarTab === "community" ? "flex" : "hidden lg:flex"
+            } ${viewMode === "split" ? "flex lg:flex" : viewMode === "feed" ? "hidden" : viewMode === "map" ? "hidden" : ""}`}
+          >
+            <div className="border-b border-white/10 px-3 py-2">
+              <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--ve-yellow)]">
+                {t.communityFeedTitle}
+              </h2>
+              <p className="text-[11px] text-white/70">{t.communityFeedSubtitle}</p>
+            </div>
+
+            <div className="space-y-2 border-b border-white/10 p-3">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => openForm("request")}
+                  className="btn-ve-primary rounded px-3 py-2 text-xs font-bold uppercase tracking-wide"
+                >
+                  {t.addRequest}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openForm("video")}
+                  className="btn-ve-secondary rounded px-3 py-2 text-xs font-bold uppercase tracking-wide"
+                >
+                  {t.addVideo}
+                </button>
+              </div>
+
+              <fieldset className="text-xs">
+                <legend className="mb-1 font-semibold text-[var(--ve-yellow)]">
+                  {t.legend}
+                </legend>
+                <div className="flex flex-col gap-1.5">
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={layers.official}
+                      onChange={(e) =>
+                        setLayers((l) => ({ ...l, official: e.target.checked }))
+                      }
+                      className="size-3.5"
+                    />
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="inline-block size-2.5 rounded-full bg-[var(--ve-red)]" aria-hidden />
+                      {t.legendOfficial} ({officialEvents.filter((e) => e.lat != null).length})
+                    </span>
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={layers.requests}
+                      onChange={(e) =>
+                        setLayers((l) => ({ ...l, requests: e.target.checked }))
+                      }
+                      className="size-3.5"
+                    />
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="inline-block size-2.5 rounded-full bg-[var(--ve-yellow)]" aria-hidden />
+                      {t.legendRequest} ({requests.length})
+                    </span>
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={layers.videos}
+                      onChange={(e) =>
+                        setLayers((l) => ({ ...l, videos: e.target.checked }))
+                      }
+                      className="size-3.5"
+                    />
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="inline-block size-2.5 rounded-full bg-[var(--ve-blue)] ring-1 ring-white" aria-hidden />
+                      {t.legendVideo} ({videos.length})
+                    </span>
+                  </label>
+                </div>
+              </fieldset>
+            </div>
+
+            <div className="flex-1 overflow-y-auto" aria-busy={loading}>
+              {loading ? (
+                <p className="p-3 text-sm text-white/70">{t.loading}</p>
+              ) : visibleRequests.length === 0 && visibleVideos.length === 0 ? (
+                <p className="p-3 text-sm text-white/70">{t.noData}</p>
+              ) : (
+                <ul>
+                  {visibleRequests.map((req) => (
+                    <li key={req.id} className="border-b border-white/10 px-3 py-2.5 hover:bg-white/5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--ve-yellow)]">
+                            {req.person_name}
+                          </p>
+                          <p className="mt-0.5 text-xs text-white/80">{req.last_seen_area}</p>
+                          <p className="mt-1 text-[10px] text-white/50">
+                            {t.status[req.status]} · {formatDate(req.created_at)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => focusPin(req.lat, req.lng)}
+                          className="shrink-0 text-[10px] font-bold uppercase text-[var(--ve-yellow)] underline"
+                        >
+                          {t.goToLocation}
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => focusPin(req.lat, req.lng)}
-                        className="shrink-0 text-sm font-medium text-blue-700 underline hover:text-blue-900"
-                      >
-                        {t.goToLocation}
-                      </button>
-                    </div>
-                  </li>
-                ))}
-                {visibleVideos.map((video) => (
-                  <li key={video.id} className="p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold text-slate-900">
-                          <span
-                            className="mr-2 inline-block size-2.5 rounded-full bg-blue-700 align-middle"
-                            aria-hidden
-                          />
-                          {video.title}
-                        </p>
-                        <p className="mt-1 text-sm text-slate-700">
-                          {video.area_name}
-                        </p>
-                        <p className="mt-2 flex flex-wrap gap-3 text-sm">
-                          <a
-                            href={video.video_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-medium text-blue-700 underline"
-                          >
-                            {t.watchVideo}
-                          </a>
-                          {video.source_url && (
+                    </li>
+                  ))}
+                  {visibleVideos.map((video) => (
+                    <li key={video.id} className="border-b border-white/10 px-3 py-2.5 hover:bg-white/5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-white">{video.title}</p>
+                          <p className="mt-0.5 text-xs text-white/80">{video.area_name}</p>
+                          <p className="mt-1 flex gap-2 text-[10px]">
                             <a
-                              href={video.source_url}
+                              href={video.video_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="font-medium text-blue-700 underline"
+                              className="text-[var(--ve-yellow)] underline"
                             >
-                              {t.viewSource}
+                              {t.watchVideo}
                             </a>
-                          )}
-                        </p>
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => focusPin(video.lat, video.lng)}
+                          className="shrink-0 text-[10px] font-bold uppercase text-[var(--ve-yellow)] underline"
+                        >
+                          {t.goToLocation}
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => focusPin(video.lat, video.lng)}
-                        className="shrink-0 text-sm font-medium text-blue-700 underline hover:text-blue-900"
-                      >
-                        {t.goToLocation}
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
-        </section>
+        </aside>
 
         <section
-          className={`min-h-[50vh] flex-1 ${
-            viewMode === "list" ? "hidden lg:block" : "block"
+          className={`relative min-h-[50vh] flex-1 bg-[var(--ve-blue-dark)] ${
+            viewMode === "feed" ? "hidden lg:block" : "block"
           }`}
           aria-label={t.mapView}
         >
-          <div className="mb-2 flex flex-wrap gap-2">
+          <div className="absolute left-3 top-3 z-[500] flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => setFlyToTarget({ lat: EPICENTER.lat, lng: EPICENTER.lng })}
-              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-slate-600"
+              className="rounded border border-[var(--ve-yellow)] bg-[var(--ve-blue)]/90 px-2.5 py-1 text-[11px] font-bold uppercase text-[var(--ve-yellow)] backdrop-blur hover:bg-[var(--ve-blue)]"
             >
               {t.focusEpicenter}
             </button>
             <button
               type="button"
               onClick={() => setFlyToTarget({ lat: CARACAS.lat, lng: CARACAS.lng })}
-              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-slate-600"
+              className="rounded border border-white/30 bg-[var(--ve-blue)]/90 px-2.5 py-1 text-[11px] font-bold uppercase text-white backdrop-blur hover:bg-[var(--ve-blue)]"
             >
               {t.focusCaracas}
             </button>
           </div>
-          <div className="h-[50vh] lg:h-[calc(100vh-12rem)]">
+          <div className="h-[50vh] lg:h-full">
             <ReliefMapLoader
               requests={visibleRequests}
               videos={visibleVideos}
+              officialEvents={visibleOfficial}
               layers={layers}
               pickMode={Boolean(formMode)}
               pickedLocation={pickedLocation}
@@ -469,19 +536,19 @@ export default function HomePage() {
       {formMode && (
         <aside
           ref={panelRef}
-          className="fixed bottom-0 right-0 top-auto z-[1500] flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-2xl sm:bottom-4 sm:right-4 sm:top-4 sm:max-h-none sm:w-[min(100%,24rem)] sm:rounded-xl"
+          className="fixed bottom-0 right-0 top-auto z-[1500] flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl border border-[var(--ve-yellow)] bg-[var(--ve-blue)] text-white shadow-2xl sm:bottom-4 sm:right-4 sm:top-4 sm:max-h-none sm:w-[min(100%,24rem)] sm:rounded-xl"
           role="dialog"
           aria-modal="false"
           aria-labelledby="form-title"
         >
-          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-            <h2 id="form-title" className="text-lg font-semibold text-slate-900">
+          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+            <h2 id="form-title" className="text-lg font-semibold text-[var(--ve-yellow)]">
               {formMode === "request" ? t.addRequest : t.addVideo}
             </h2>
             <button
               type="button"
               onClick={closeForm}
-              className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-slate-600"
+              className="rounded-md px-3 py-1.5 text-sm font-medium text-white/80 hover:bg-white/10"
               aria-label={t.close}
             >
               {t.close}
@@ -489,14 +556,14 @@ export default function HomePage() {
           </div>
 
           <div className="overflow-y-auto px-4 py-3">
-            <p className="mb-3 text-sm text-slate-600" role="status" aria-live="polite">
+            <p className="mb-3 text-sm text-white/75" role="status" aria-live="polite">
               {pickedLocation ? t.locationSelected : t.clickMapHint}
             </p>
 
             {message && (
               <p
                 className={`mb-3 text-sm ${
-                  message.type === "success" ? "text-emerald-800" : "text-red-800"
+                  message.type === "success" ? "text-[var(--ve-yellow)]" : "text-red-300"
                 }`}
                 role="alert"
               >
@@ -517,7 +584,7 @@ export default function HomePage() {
                   required
                   minLength={2}
                   autoComplete="name"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
                   placeholder={t.personNamePlaceholder}
                 />
               </div>
@@ -530,7 +597,7 @@ export default function HomePage() {
                   name="last_seen_area"
                   required
                   minLength={2}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
                   placeholder={t.lastSeenPlaceholder}
                 />
               </div>
@@ -542,7 +609,7 @@ export default function HomePage() {
                   id="description"
                   name="description"
                   rows={3}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
                   placeholder={t.descriptionPlaceholder}
                 />
               </div>
@@ -556,14 +623,14 @@ export default function HomePage() {
                   required
                   minLength={3}
                   autoComplete="tel"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
                   placeholder={t.contactPlaceholder}
                 />
               </div>
               <button
                 type="submit"
                 disabled={!pickedLocation || submitting}
-                className="w-full rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600"
+                className="w-full rounded-lg bg-[var(--ve-red)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--ve-red-dark)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting ? t.submitting : t.submit}
               </button>
@@ -580,7 +647,7 @@ export default function HomePage() {
                   name="area_name"
                   required
                   minLength={2}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
                   placeholder={t.areaPlaceholder}
                 />
               </div>
@@ -593,7 +660,7 @@ export default function HomePage() {
                   name="title"
                   required
                   minLength={3}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
                   placeholder={t.videoTitlePlaceholder}
                 />
               </div>
@@ -605,7 +672,7 @@ export default function HomePage() {
                   id="situation_type"
                   name="situation_type"
                   defaultValue="damage"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
                 >
                   {(Object.keys(t.situationTypes) as SituationType[]).map((key) => (
                     <option key={key} value={key}>
@@ -624,7 +691,7 @@ export default function HomePage() {
                   type="url"
                   required
                   inputMode="url"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
                   placeholder={t.videoUrlPlaceholder}
                 />
               </div>
@@ -637,7 +704,7 @@ export default function HomePage() {
                   name="source_url"
                   type="url"
                   inputMode="url"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
                   placeholder={t.sourceUrlPlaceholder}
                 />
               </div>
@@ -649,14 +716,14 @@ export default function HomePage() {
                   id="video_description"
                   name="description"
                   rows={3}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
                   placeholder={t.descriptionPlaceholder}
                 />
               </div>
               <button
                 type="submit"
                 disabled={!pickedLocation || submitting}
-                className="w-full rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                className="w-full rounded-lg bg-[var(--ve-yellow)] px-4 py-2.5 text-sm font-semibold text-[var(--ve-blue-dark)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting ? t.submitting : t.submit}
               </button>

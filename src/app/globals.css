@@ -2,9 +2,15 @@
 @import "leaflet/dist/leaflet.css";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --focus-ring: #2563eb;
+  --ve-yellow: #ffcc00;
+  --ve-blue: #00247d;
+  --ve-blue-dark: #001a5c;
+  --ve-red: #cf142b;
+  --ve-red-dark: #a81022;
+  --background: #001a5c;
+  --foreground: #f8fafc;
+  --panel-bg: #00247d;
+  --focus-ring: #ffcc00;
 }
 
 @theme inline {
@@ -12,6 +18,9 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-ve-yellow: var(--ve-yellow);
+  --color-ve-blue: var(--ve-blue);
+  --color-ve-red: var(--ve-red);
 }
 
 body {
@@ -59,7 +68,49 @@ body {
   white-space: normal;
 }
 
+.ve-tricolor {
+  height: 4px;
+  background: linear-gradient(
+    to right,
+    var(--ve-yellow) 0%,
+    var(--ve-yellow) 33.33%,
+    var(--ve-blue) 33.33%,
+    var(--ve-blue) 66.66%,
+    var(--ve-red) 66.66%,
+    var(--ve-red) 100%
+  );
+}
+
 .leaflet-container {
   font-family: inherit;
   z-index: 0;
+}
+
+.feed-panel {
+  background: var(--panel-bg);
+  color: #fff;
+}
+
+.community-panel {
+  background: #0f2744;
+  color: #fff;
+}
+
+.btn-ve-primary {
+  background: var(--ve-red);
+  color: #fff;
+}
+
+.btn-ve-primary:hover {
+  background: var(--ve-red-dark);
+}
+
+.btn-ve-secondary {
+  background: var(--ve-blue);
+  color: #fff;
+  border: 1px solid var(--ve-yellow);
+}
+
+.btn-ve-secondary:hover {
+  background: var(--ve-blue-dark);
 }
