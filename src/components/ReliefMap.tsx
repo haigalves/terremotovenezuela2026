@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useMemo, useRef } from "react";
 import type { LatLngExpression } from "leaflet";
 import {
   MapContainer,
@@ -13,8 +13,8 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { useTranslation } from "@/components/LocaleProvider";
 import { CARACAS, EPICENTER } from "@/lib/constants";
-import { t } from "@/lib/i18n";
 import type {
   CheckRequest,
   LayerVisibility,
@@ -37,13 +37,9 @@ function createPinIcon(color: string, label: string) {
   });
 }
 
-const requestIcon = createPinIcon("#e6b800", t.legendRequest);
-const videoIcon = createPinIcon("#1e4080", t.legendVideo);
-const officialIcon = createPinIcon("#c41e3a", t.legendOfficial);
-
-function formatDate(iso: string) {
+function formatDate(iso: string, locale: string) {
   try {
-    return new Intl.DateTimeFormat("es-VE", {
+    return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "es-VE", {
       dateStyle: "medium",
       timeStyle: "short",
     }).format(new Date(iso));
@@ -110,8 +106,22 @@ export default function ReliefMap({
   flyToTarget,
   onPickLocation,
 }: ReliefMapProps) {
+  const { t, locale } = useTranslation();
   const mapLabelId = useId();
   const center: LatLngExpression = [10.35, -67.5];
+
+  const requestIcon = useMemo(
+    () => createPinIcon("#e6b800", t.legendRequest),
+    [t.legendRequest],
+  );
+  const videoIcon = useMemo(
+    () => createPinIcon("#1e4080", t.legendVideo),
+    [t.legendVideo],
+  );
+  const officialIcon = useMemo(
+    () => createPinIcon("#c41e3a", t.legendOfficial),
+    [t.legendOfficial],
+  );
 
   return (
     <div className="relative h-full min-h-[320px] w-full">
@@ -206,7 +216,7 @@ export default function ReliefMap({
                     {req.contact_info}
                   </p>
                   <p className="text-xs text-gray-600">
-                    {t.posted}: {formatDate(req.created_at)}
+                    {t.posted}: {formatDate(req.created_at, locale)}
                   </p>
                 </div>
               </Popup>
@@ -251,7 +261,7 @@ export default function ReliefMap({
                     </p>
                   )}
                   <p className="text-xs text-gray-600">
-                    {t.posted}: {formatDate(video.created_at)}
+                    {t.posted}: {formatDate(video.created_at, locale)}
                   </p>
                 </div>
               </Popup>

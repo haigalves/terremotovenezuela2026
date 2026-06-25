@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { t } from "@/lib/i18n";
+import { useTranslation } from "@/components/LocaleProvider";
 import type { CheckRequest, VerifiedSituation } from "@/lib/types";
 
 const TOKEN_KEY = "tv2026_admin_token";
 
-function formatDate(iso: string) {
+function formatDate(iso: string, locale: string) {
   try {
-    return new Intl.DateTimeFormat("es-VE", {
+    return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "es-VE", {
       dateStyle: "medium",
       timeStyle: "short",
     }).format(new Date(iso));
@@ -19,6 +19,7 @@ function formatDate(iso: string) {
 }
 
 export default function AdminPage() {
+  const { t, locale, setLocale } = useTranslation();
   const [token, setToken] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -104,12 +105,40 @@ export default function AdminPage() {
           <h1 className="text-2xl font-bold text-[var(--ve-blue)]">{t.adminTitle}</h1>
           <p className="mt-1 text-sm text-[var(--foreground-muted)]">{t.adminSubtitle}</p>
         </div>
-        <Link
+        <div className="flex flex-wrap items-center gap-3">
+          <div
+            className="flex rounded-lg border border-[var(--border)] bg-[var(--panel-bg)] p-0.5"
+            role="group"
+            aria-label="Language"
+          >
+            <button
+              type="button"
+              onClick={() => setLocale("es")}
+              aria-pressed={locale === "es"}
+              className={`rounded-md px-2.5 py-1 text-xs font-semibold ${
+                locale === "es" ? "bg-[var(--ve-blue)] text-white" : "text-slate-500"
+              }`}
+            >
+              {t.langEs}
+            </button>
+            <button
+              type="button"
+              onClick={() => setLocale("en")}
+              aria-pressed={locale === "en"}
+              className={`rounded-md px-2.5 py-1 text-xs font-semibold ${
+                locale === "en" ? "bg-[var(--ve-blue)] text-white" : "text-slate-500"
+              }`}
+            >
+              {t.langEn}
+            </button>
+          </div>
+          <Link
           href="/"
           className="text-sm font-medium text-[var(--ve-blue)] underline hover:text-[var(--ve-red)]"
         >
           {t.adminBackToMap}
         </Link>
+        </div>
       </div>
 
       {!token ? (
@@ -181,7 +210,7 @@ export default function AdminPage() {
                     <p className="mt-1 text-sm">
                       <span className="font-medium">{t.contact}:</span> {req.contact_info}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">{formatDate(req.created_at)}</p>
+                    <p className="mt-1 text-xs text-slate-500">{formatDate(req.created_at, locale)}</p>
                     <div className="mt-3 flex gap-2">
                       <button
                         type="button"
@@ -245,7 +274,7 @@ export default function AdminPage() {
                     {video.description && (
                       <p className="mt-1 text-sm text-slate-600">{video.description}</p>
                     )}
-                    <p className="mt-1 text-xs text-slate-500">{formatDate(video.created_at)}</p>
+                    <p className="mt-1 text-xs text-slate-500">{formatDate(video.created_at, locale)}</p>
                     <div className="mt-3 flex gap-2">
                       <button
                         type="button"

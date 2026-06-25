@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "@/components/LocaleProvider";
 import type { OfficialFeedItem } from "@/lib/official-types";
-import { t } from "@/lib/i18n";
 
-function formatRelativeTime(iso: string) {
+import type { Messages } from "@/lib/i18n";
+
+function formatRelativeTime(iso: string, t: Messages) {
   const diff = Date.now() - new Date(iso).getTime();
   const minutes = Math.floor(diff / 60_000);
   if (minutes < 1) return t.justNow;
@@ -37,6 +39,7 @@ export default function OfficialFeed({
   onSelectEvent,
   compact = false,
 }: OfficialFeedProps) {
+  const { t } = useTranslation();
   const [items, setItems] = useState<OfficialFeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
@@ -111,7 +114,7 @@ export default function OfficialFeed({
         </span>
         {lastUpdate && (
           <span className="ml-auto text-[var(--foreground-muted)]">
-            {formatRelativeTime(lastUpdate)}
+            {formatRelativeTime(lastUpdate, t)}
           </span>
         )}
       </div>
@@ -147,7 +150,7 @@ export default function OfficialFeed({
                       className="shrink-0 text-[11px] text-[var(--foreground-muted)]"
                       dateTime={item.time}
                     >
-                      {formatRelativeTime(item.time)}
+                      {formatRelativeTime(item.time, t)}
                     </time>
                     <span
                       className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${sourceStyles(item.source)}`}

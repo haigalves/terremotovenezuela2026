@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReliefMapLoader from "@/components/ReliefMapLoader";
 import OfficialFeed from "@/components/OfficialFeed";
+import SiteHeader from "@/components/SiteHeader";
+import HowToModal from "@/components/HowToModal";
+import { useTranslation } from "@/components/LocaleProvider";
 import { CARACAS, EPICENTER } from "@/lib/constants";
-import { t } from "@/lib/i18n";
 import type { OfficialFeedItem } from "@/lib/official-types";
 import type {
   CheckRequest,
@@ -17,17 +19,6 @@ type FormMode = "request" | "video" | null;
 type SidebarTab = "official" | "community";
 type ViewMode = "split" | "map" | "feed";
 
-function formatDate(iso: string) {
-  try {
-    return new Intl.DateTimeFormat("es-VE", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
 function isValidUrl(value: string) {
   try {
     const url = new URL(value);
@@ -38,6 +29,8 @@ function isValidUrl(value: string) {
 }
 
 export default function HomePage() {
+  const { t, locale } = useTranslation();
+  const [howToOpen, setHowToOpen] = useState(false);
   const [requests, setRequests] = useState<CheckRequest[]>([]);
   const [videos, setVideos] = useState<VerifiedSituation[]>([]);
   const [configured, setConfigured] = useState(true);
@@ -68,6 +61,20 @@ export default function HomePage() {
   const panelRef = useRef<HTMLElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
 
+  const formatDate = useCallback(
+    (iso: string) => {
+      try {
+        return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "es-VE", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        }).format(new Date(iso));
+      } catch {
+        return iso;
+      }
+    },
+    [locale],
+  );
+
   const loadOfficial = useCallback(async () => {
     try {
       const res = await fetch("/api/official-feed", { cache: "no-store" });
@@ -96,7 +103,7 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t.errorGeneric]);
 
   useEffect(() => {
     loadData();
@@ -121,6 +128,15 @@ export default function HomePage() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [formMode]);
+
+  useEffect(() => {
+    if (!howToOpen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setHowToOpen(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [howToOpen]);
 
   function openForm(mode: FormMode) {
     setPickedLocation(null);
@@ -239,21 +255,8 @@ export default function HomePage() {
         {t.skipToContent}
       </a>
 
-      <div className="ve-tricolor" aria-hidden />
-
-      <header className="border-b border-[var(--border)] bg-white shadow-sm">
-        <div className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-[var(--ve-blue)] sm:text-2xl">
-              {t.headerTitle}
-            </h1>
-            <p className="text-sm text-[var(--foreground-muted)]">{t.headerSubtitle}</p>
-          </div>
-          <p className="max-w-xl text-xs text-[var(--foreground-muted)] sm:text-sm" role="note">
-            {t.disclaimer}
-          </p>
-        </div>
-      </header>
+      <SiteHeader onOpenHowTo={() => setHowToOpen(true)} />
+      <HowToModal open={howToOpen} onClose={() => setHowToOpen(false)} />
 
       {!configured && (
         <div
