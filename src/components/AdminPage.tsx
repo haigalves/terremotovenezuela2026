@@ -26,6 +26,8 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [requests, setRequests] = useState<CheckRequest[]>([]);
   const [videos, setVideos] = useState<VerifiedSituation[]>([]);
+  const [publishedRequests, setPublishedRequests] = useState<CheckRequest[]>([]);
+  const [publishedVideos, setPublishedVideos] = useState<VerifiedSituation[]>([]);
 
   useEffect(() => {
     setToken(sessionStorage.getItem(TOKEN_KEY));
@@ -53,11 +55,32 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
+  }, [t.adminUnauthorized, t.errorGeneric]);
+
+  const loadPublished = useCallback(async (adminToken: string) => {
+    try {
+      const res = await fetch("/api/admin/published", {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      if (!res.ok) return;
+      const json = await res.json();
+      setPublishedRequests(json.requests ?? []);
+      setPublishedVideos(json.videos ?? []);
+    } catch {
+      /* ignore */
+    }
   }, []);
 
+  const loadAll = useCallback(
+    async (adminToken: string) => {
+      await Promise.all([loadPending(adminToken), loadPublished(adminToken)]);
+    },
+    [loadPending, loadPublished],
+  );
+
   useEffect(() => {
-    if (token) loadPending(token);
-  }, [token, loadPending]);
+    if (token) loadAll(token);
+  }, [token, loadAll]);
 
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -72,6 +95,8 @@ export default function AdminPage() {
     setToken(null);
     setRequests([]);
     setVideos([]);
+    setPublishedRequests([]);
+    setPublishedVideos([]);
   }
 
   async function moderate(
@@ -91,7 +116,7 @@ export default function AdminPage() {
         body: JSON.stringify({ type, id, approved }),
       });
       if (!res.ok) throw new Error();
-      await loadPending(token);
+      await loadAll(token);
     } catch {
       setError(t.errorGeneric);
     }
@@ -289,6 +314,72 @@ export default function AdminPage() {
                         className="rounded-lg border border-red-300 px-3 py-1.5 text-sm font-medium text-red-800 hover:bg-red-50"
                       >
                         {t.adminReject}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section aria-labelledby="published-requests-heading">
+            <h2 id="published-requests-heading" className="text-lg font-semibold">
+              {t.adminPublishedRequests}
+            </h2>
+            {publishedRequests.length === 0 ? (
+              <p className="mt-2 text-sm text-slate-600">{t.adminNonePublished}</p>
+            ) : (
+              <ul className="mt-3 space-y-3">
+                {publishedRequests.map((req) => (
+                  <li
+                    key={req.id}
+                    className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm"
+                  >
+                    <p className="font-semibold">{req.person_name}</p>
+                    <p className="mt-1 text-sm text-slate-700">{req.last_seen_area}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {formatDate(req.created_at, locale)}
+                    </p>
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={() => moderate("request", req.id, false)}
+                        className="rounded-lg border border-red-300 px-3 py-1.5 text-sm font-medium text-red-800 hover:bg-red-50"
+                      >
+                        {t.adminDelete}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section aria-labelledby="published-videos-heading">
+            <h2 id="published-videos-heading" className="text-lg font-semibold">
+              {t.adminPublishedVideos}
+            </h2>
+            {publishedVideos.length === 0 ? (
+              <p className="mt-2 text-sm text-slate-600">{t.adminNonePublished}</p>
+            ) : (
+              <ul className="mt-3 space-y-3">
+                {publishedVideos.map((video) => (
+                  <li
+                    key={video.id}
+                    className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm"
+                  >
+                    <p className="font-semibold">{video.title}</p>
+                    <p className="mt-1 text-sm text-slate-700">{video.area_name}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {formatDate(video.created_at, locale)}
+                    </p>
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={() => moderate("video", video.id, false)}
+                        className="rounded-lg border border-red-300 px-3 py-1.5 text-sm font-medium text-red-800 hover:bg-red-50"
+                      >
+                        {t.adminDelete}
                       </button>
                     </div>
                   </li>

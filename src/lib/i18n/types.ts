@@ -98,6 +98,10 @@ export type Messages = {
   adminReject: string;
   adminNonePending: string;
   adminUnauthorized: string;
+  adminPublishedRequests: string;
+  adminPublishedVideos: string;
+  adminDelete: string;
+  adminNonePublished: string;
   howToButton: string;
   howToTitle: string;
   howToIntro: string;

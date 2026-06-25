@@ -98,6 +98,10 @@ export const es: Messages = {
   adminReject: "Rechazar",
   adminNonePending: "Nada pendiente.",
   adminUnauthorized: "Contraseña incorrecta.",
+  adminPublishedRequests: "Publicado en el mapa — solicitudes",
+  adminPublishedVideos: "Publicado en el mapa — videos",
+  adminDelete: "Eliminar del mapa",
+  adminNonePublished: "Nada publicado.",
   howToButton: "Cómo funciona",
   howToTitle: "Cómo usar este sitio",
   howToIntro:
@@ -233,6 +237,10 @@ export const en: Messages = {
   adminReject: "Reject",
   adminNonePending: "Nothing pending.",
   adminUnauthorized: "Incorrect password.",
+  adminPublishedRequests: "On the map — requests",
+  adminPublishedVideos: "On the map — videos",
+  adminDelete: "Remove from map",
+  adminNonePublished: "Nothing published.",
   howToButton: "How it works",
   howToTitle: "How to use this site",
   howToIntro:
