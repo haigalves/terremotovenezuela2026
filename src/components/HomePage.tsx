@@ -176,7 +176,14 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage({
+          type: "error",
+          text: typeof json.error === "string" ? json.error : t.errorGeneric,
+        });
+        return;
+      }
       setMessage({ type: "success", text: t.successRequest });
       closeForm();
       await loadData();
@@ -225,7 +232,14 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage({
+          type: "error",
+          text: typeof json.error === "string" ? json.error : t.errorGeneric,
+        });
+        return;
+      }
       setMessage({ type: "success", text: t.successVideo });
       closeForm();
       await loadData();

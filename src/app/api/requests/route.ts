@@ -25,7 +25,10 @@ export async function GET() {
   if (!supabase) {
     return NextResponse.json({
       data: [] as CheckRequest[],
-      configured: isSupabaseConfigured(),
+      configured: false,
+      error: isSupabaseConfigured()
+        ? "Invalid Supabase configuration"
+        : "Database not configured",
     });
   }
 
@@ -50,7 +53,11 @@ export async function POST(request: Request) {
   const supabase = getSupabase();
   if (!supabase) {
     return NextResponse.json(
-      { error: "Database not configured" },
+      {
+        error: isSupabaseConfigured()
+          ? "Invalid Supabase URL or API key on server"
+          : "Database not configured",
+      },
       { status: 503 },
     );
   }
