@@ -8,12 +8,14 @@ import {
   Marker,
   Popup,
   CircleMarker,
+  ZoomControl,
   useMap,
   useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useTranslation } from "@/components/LocaleProvider";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { CARACAS, EPICENTER } from "@/lib/constants";
 import type {
   CheckRequest,
@@ -22,18 +24,19 @@ import type {
 } from "@/lib/types";
 import type { OfficialFeedItem } from "@/lib/official-types";
 
-function createPinIcon(color: string, label: string) {
+function createPinIcon(color: string, label: string, size = 28) {
+  const border = Math.round(size * 0.11);
   return L.divIcon({
     className: "",
     html: `<span role="img" aria-label="${label}" style="
-      display:block;width:28px;height:28px;
-      background:${color};border:3px solid #fff;
+      display:block;width:${size}px;height:${size}px;
+      background:${color};border:${border}px solid #fff;
       border-radius:50% 50% 50% 0;transform:rotate(-45deg);
-      box-shadow:0 2px 6px rgba(0,0,0,.35);
+      box-shadow:0 2px 8px rgba(0,0,0,.4);
     "></span>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 28],
-    popupAnchor: [0, -28],
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size],
+    popupAnchor: [0, -size],
   });
 }
 
@@ -107,20 +110,22 @@ export default function ReliefMap({
   onPickLocation,
 }: ReliefMapProps) {
   const { t, locale } = useTranslation();
+  const isMobile = useIsMobile();
   const mapLabelId = useId();
   const center: LatLngExpression = [10.35, -67.5];
+  const pinSize = isMobile ? 34 : 28;
 
   const requestIcon = useMemo(
-    () => createPinIcon("#e6b800", t.legendRequest),
-    [t.legendRequest],
+    () => createPinIcon("#e6b800", t.legendRequest, pinSize),
+    [t.legendRequest, pinSize],
   );
   const videoIcon = useMemo(
-    () => createPinIcon("#1e4080", t.legendVideo),
-    [t.legendVideo],
+    () => createPinIcon("#1e4080", t.legendVideo, pinSize),
+    [t.legendVideo, pinSize],
   );
   const officialIcon = useMemo(
-    () => createPinIcon("#c41e3a", t.legendOfficial),
-    [t.legendOfficial],
+    () => createPinIcon("#c41e3a", t.legendOfficial, pinSize),
+    [t.legendOfficial, pinSize],
   );
 
   return (
@@ -132,9 +137,11 @@ export default function ReliefMap({
         center={center}
         zoom={8}
         className="h-full w-full"
-        scrollWheelZoom
+        scrollWheelZoom={!isMobile}
+        zoomControl={false}
         aria-labelledby={mapLabelId}
       >
+        <ZoomControl position={isMobile ? "bottomleft" : "topleft"} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -164,8 +171,8 @@ export default function ReliefMap({
                 position={[event.lat!, event.lng!]}
                 icon={officialIcon}
               >
-                <Popup>
-                  <div className="max-w-xs space-y-1 text-sm">
+                <Popup className="map-popup" minWidth={220}>
+                  <div className="space-y-2 text-sm leading-snug">
                     <p className="font-semibold">{event.title}</p>
                     <p className="text-xs font-bold uppercase text-red-700">
                       {event.source}
@@ -182,7 +189,7 @@ export default function ReliefMap({
                         href={event.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-700 underline"
+                        className="map-popup-link"
                       >
                         {t.openSource}
                       </a>
@@ -199,8 +206,8 @@ export default function ReliefMap({
               position={[req.lat, req.lng]}
               icon={requestIcon}
             >
-              <Popup>
-                <div className="max-w-xs space-y-1 text-sm">
+              <Popup className="map-popup" minWidth={220}>
+                <div className="space-y-2 text-sm leading-snug">
                   <p className="font-semibold">{req.person_name}</p>
                   <p>
                     <span className="font-medium">{t.lastSeenArea}:</span>{" "}
@@ -230,8 +237,8 @@ export default function ReliefMap({
               position={[video.lat, video.lng]}
               icon={videoIcon}
             >
-              <Popup>
-                <div className="max-w-xs space-y-1 text-sm">
+              <Popup className="map-popup" minWidth={220}>
+                <div className="space-y-2 text-sm leading-snug">
                   <p className="font-semibold">{video.title}</p>
                   <p>{video.area_name}</p>
                   <p className="text-xs text-gray-600">
@@ -243,7 +250,7 @@ export default function ReliefMap({
                       href={video.video_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-700 underline"
+                      className="map-popup-link"
                     >
                       {t.watchVideo}
                     </a>
@@ -254,7 +261,7 @@ export default function ReliefMap({
                         href={video.source_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-700 underline"
+                        className="map-popup-link"
                       >
                         {t.viewSource}
                       </a>
@@ -271,11 +278,12 @@ export default function ReliefMap({
         {pickedLocation && (
           <CircleMarker
             center={[pickedLocation.lat, pickedLocation.lng]}
-            radius={8}
+            radius={isMobile ? 12 : 8}
             pathOptions={{
               color: "#15803d",
               fillColor: "#22c55e",
-              fillOpacity: 0.9,
+              fillOpacity: 0.95,
+              weight: 3,
             }}
           />
         )}
@@ -283,12 +291,12 @@ export default function ReliefMap({
 
       {pickMode && (
         <div
-          className="pointer-events-none absolute inset-x-0 top-3 z-[1000] flex justify-center px-3"
+          className="pointer-events-none absolute inset-x-0 top-14 z-[1000] flex justify-center px-3 sm:top-3"
           role="status"
           aria-live="polite"
         >
-          <span className="rounded-full bg-white px-4 py-2 text-sm font-medium text-[var(--ve-blue)] shadow-md ring-1 ring-[var(--border)]">
-            {t.clickMapHint}
+          <span className="pick-mode-banner rounded-full px-4 py-2.5 text-sm font-semibold text-[var(--ve-blue)] shadow-lg ring-1 ring-[var(--border)]">
+            {t.pickLocationHint}
           </span>
         </div>
       )}

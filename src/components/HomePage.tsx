@@ -5,7 +5,9 @@ import ReliefMapLoader from "@/components/ReliefMapLoader";
 import OfficialFeed from "@/components/OfficialFeed";
 import SiteHeader from "@/components/SiteHeader";
 import HowToModal from "@/components/HowToModal";
+import MobileToast from "@/components/MobileToast";
 import { useTranslation } from "@/components/LocaleProvider";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { CARACAS, EPICENTER } from "@/lib/constants";
 import type { OfficialFeedItem } from "@/lib/official-types";
 import type {
@@ -16,6 +18,9 @@ import type {
 } from "@/lib/types";
 
 type FormMode = "request" | "video" | null;
+type FormStep = "pick" | "fill";
+
+const COACH_KEY = "terremoto2026-coach-dismissed";
 
 function isValidUrl(value: string) {
   try {
@@ -28,6 +33,7 @@ function isValidUrl(value: string) {
 
 export default function HomePage() {
   const { t } = useTranslation();
+  const isMobile = useIsMobile();
   const [howToOpen, setHowToOpen] = useState(false);
   const [requests, setRequests] = useState<CheckRequest[]>([]);
   const [videos, setVideos] = useState<VerifiedSituation[]>([]);
@@ -41,6 +47,8 @@ export default function HomePage() {
   const [feedOpen, setFeedOpen] = useState(false);
   const [layersOpen, setLayersOpen] = useState(false);
   const [formMode, setFormMode] = useState<FormMode>(null);
+  const [formStep, setFormStep] = useState<FormStep>("pick");
+  const [showCoach, setShowCoach] = useState(false);
   const [pickedLocation, setPickedLocation] = useState<{
     lat: number;
     lng: number;
@@ -58,6 +66,10 @@ export default function HomePage() {
   const panelRef = useRef<HTMLElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const layersRef = useRef<HTMLDivElement>(null);
+
+  const mobileWizard = isMobile && Boolean(formMode);
+  const onPickStep = mobileWizard && formStep === "pick";
+  const onFillStep = !mobileWizard || formStep === "fill";
 
   async function loadPins() {
     const [reqRes, vidRes] = await Promise.all([
@@ -106,9 +118,21 @@ export default function HomePage() {
   }, [loadData, loadOfficial]);
 
   useEffect(() => {
-    if (!formMode) return;
-    requestAnimationFrame(() => firstFieldRef.current?.focus());
-  }, [formMode]);
+    if (typeof window === "undefined") return;
+    setShowCoach(!sessionStorage.getItem(COACH_KEY));
+  }, []);
+
+  useEffect(() => {
+    const locked = Boolean(formMode) || feedOpen || howToOpen;
+    document.body.classList.toggle("scroll-locked", locked);
+    return () => document.body.classList.remove("scroll-locked");
+  }, [formMode, feedOpen, howToOpen]);
+
+  useEffect(() => {
+    if (!formMode || !onFillStep) return;
+    const timer = window.setTimeout(() => firstFieldRef.current?.focus(), 300);
+    return () => window.clearTimeout(timer);
+  }, [formMode, onFillStep, formStep]);
 
   useEffect(() => {
     if (!formMode && !feedOpen) return;
@@ -142,15 +166,47 @@ export default function HomePage() {
     return () => window.removeEventListener("pointerdown", onPointerDown);
   }, [layersOpen]);
 
+  useEffect(() => {
+    if (!message || formMode) return;
+    const timer = window.setTimeout(() => setMessage(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [message, formMode]);
+
+  function dismissCoach() {
+    sessionStorage.setItem(COACH_KEY, "1");
+    setShowCoach(false);
+  }
+
   function openForm(mode: FormMode) {
     setFeedOpen(false);
+    setLayersOpen(false);
     setPickedLocation(null);
     setMessage(null);
+    setFormStep("pick");
     setFormMode(mode);
+    dismissCoach();
   }
 
   function closeForm() {
     setFormMode(null);
+    setFormStep("pick");
+    setPickedLocation(null);
+  }
+
+  function handlePickLocation(lat: number, lng: number) {
+    setPickedLocation({ lat, lng });
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(40);
+    }
+  }
+
+  function goToFillStep() {
+    if (!pickedLocation) return;
+    setFormStep("fill");
+  }
+
+  function backToPickStep() {
+    setFormStep("pick");
     setPickedLocation(null);
   }
 
@@ -259,9 +315,10 @@ export default function HomePage() {
   const visibleOfficial = layers.official ? officialEvents : [];
   const visibleRequests = layers.requests ? requests : [];
   const visibleVideos = layers.videos ? videos : [];
+  const hideActionBar = Boolean(formMode) || feedOpen;
 
   return (
-    <>
+    <div className="app-shell flex h-dvh flex-col overflow-hidden">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[2000] focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-[var(--ve-blue-dark)] focus:shadow-lg"
@@ -274,7 +331,7 @@ export default function HomePage() {
 
       {!configured && (
         <div
-          className="border-b border-[var(--ve-yellow)] bg-[var(--ve-yellow-soft)] px-3 py-1.5 text-center text-xs text-[#8a6d00] sm:text-sm"
+          className="shrink-0 border-b border-[var(--ve-yellow)] bg-[var(--ve-yellow-soft)] px-3 py-1 text-center text-xs text-[#8a6d00]"
           role="alert"
         >
           {t.databaseNotConfigured}
@@ -282,128 +339,109 @@ export default function HomePage() {
       )}
 
       {message && !formMode && (
-        <div
-          className={`border-b px-3 py-1.5 text-center text-xs sm:text-sm ${
-            message.type === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-              : "border-red-200 bg-red-50 text-red-800"
-          }`}
-          role="status"
-          aria-live="polite"
-        >
-          {message.text}
-        </div>
+        <MobileToast
+          message={message.text}
+          type={message.type}
+          onDismiss={() => setMessage(null)}
+        />
       )}
 
       <main
         id="main-content"
-        className="relative flex min-h-0 flex-1 flex-col lg:flex-row lg:h-[calc(100dvh-4rem)]"
+        className="relative flex min-h-0 flex-1 flex-col lg:flex-row"
       >
-        {/* Map — first and full-height on mobile */}
         <section
-          className="relative order-1 flex min-h-0 flex-1 flex-col lg:order-2"
+          className="relative flex min-h-0 flex-1 flex-col lg:order-2"
           aria-label={t.mapView}
         >
-          <div className="map-toolbar absolute left-2 right-2 top-2 z-[500] flex flex-wrap items-start justify-between gap-2 sm:left-3 sm:right-3 sm:top-3">
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                onClick={() =>
-                  setFlyToTarget({ lat: EPICENTER.lat, lng: EPICENTER.lng })
-                }
-                className="rounded-lg border border-[var(--border)] bg-white/95 px-2.5 py-2 text-xs font-medium text-[var(--ve-blue)] shadow-sm backdrop-blur-sm active:scale-[0.98] sm:px-3"
-              >
-                {t.focusEpicenter}
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setFlyToTarget({ lat: CARACAS.lat, lng: CARACAS.lng })
-                }
-                className="rounded-lg border border-[var(--border)] bg-white/95 px-2.5 py-2 text-xs font-medium text-slate-600 shadow-sm backdrop-blur-sm active:scale-[0.98] sm:px-3"
-              >
-                {t.focusCaracas}
-              </button>
-            </div>
-
-            <div ref={layersRef} className="relative">
+          <div className="map-toolbar absolute left-0 right-0 top-0 z-[500] flex gap-2 overflow-x-auto px-2 py-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:px-3 [&::-webkit-scrollbar]:hidden">
+            <button
+              type="button"
+              onClick={() =>
+                setFlyToTarget({ lat: EPICENTER.lat, lng: EPICENTER.lng })
+              }
+              className="map-chip shrink-0"
+            >
+              {t.focusEpicenter}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setFlyToTarget({ lat: CARACAS.lat, lng: CARACAS.lng })
+              }
+              className="map-chip shrink-0 text-slate-600"
+            >
+              {t.focusCaracas}
+            </button>
+            <div ref={layersRef} className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => setLayersOpen((o) => !o)}
                 aria-expanded={layersOpen}
-                aria-haspopup="true"
-                className="rounded-lg border border-[var(--border)] bg-white/95 px-2.5 py-2 text-xs font-semibold text-[var(--ve-blue)] shadow-sm backdrop-blur-sm active:scale-[0.98] sm:px-3"
+                className="map-chip font-semibold text-[var(--ve-blue)]"
               >
                 {t.layersButton}
               </button>
               {layersOpen && (
                 <div
-                  className="absolute right-0 top-full z-10 mt-1.5 w-56 rounded-xl border border-[var(--border)] bg-white p-3 text-sm shadow-lg"
+                  className="absolute right-0 top-full z-20 mt-1.5 w-56 rounded-xl border border-[var(--border)] bg-white p-3 text-sm shadow-xl"
                   role="group"
                   aria-label={t.legend}
                 >
                   <p className="mb-2 text-xs font-semibold text-[var(--foreground-muted)]">
                     {t.legend}
                   </p>
-                  <div className="flex flex-col gap-2">
-                    <label className="flex cursor-pointer items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={layers.official}
-                        onChange={(e) =>
-                          setLayers((l) => ({ ...l, official: e.target.checked }))
-                        }
-                        className="size-4"
-                      />
-                      <span className="inline-flex items-center gap-1.5">
-                        <span
-                          className="inline-block size-2.5 rounded-full bg-[var(--ve-red)]"
-                          aria-hidden
+                  <div className="flex flex-col gap-2.5">
+                    {(
+                      [
+                        ["official", t.legendOfficial, "bg-[var(--ve-red)]"],
+                        ["requests", t.legendRequest, "bg-[var(--ve-yellow)]"],
+                        ["videos", t.legendVideo, "bg-[var(--ve-blue)]"],
+                      ] as const
+                    ).map(([key, label, dotClass]) => (
+                      <label
+                        key={key}
+                        className="flex min-h-10 cursor-pointer items-center gap-3"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={layers[key]}
+                          onChange={(e) =>
+                            setLayers((l) => ({ ...l, [key]: e.target.checked }))
+                          }
+                          className="size-5"
                         />
-                        {t.legendOfficial}
-                      </span>
-                    </label>
-                    <label className="flex cursor-pointer items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={layers.requests}
-                        onChange={(e) =>
-                          setLayers((l) => ({ ...l, requests: e.target.checked }))
-                        }
-                        className="size-4"
-                      />
-                      <span className="inline-flex items-center gap-1.5">
-                        <span
-                          className="inline-block size-2.5 rounded-full bg-[var(--ve-yellow)]"
-                          aria-hidden
-                        />
-                        {t.legendRequest}
-                      </span>
-                    </label>
-                    <label className="flex cursor-pointer items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={layers.videos}
-                        onChange={(e) =>
-                          setLayers((l) => ({ ...l, videos: e.target.checked }))
-                        }
-                        className="size-4"
-                      />
-                      <span className="inline-flex items-center gap-1.5">
-                        <span
-                          className="inline-block size-2.5 rounded-full bg-[var(--ve-blue)] ring-1 ring-[var(--border)]"
-                          aria-hidden
-                        />
-                        {t.legendVideo}
-                      </span>
-                    </label>
+                        <span className="inline-flex items-center gap-2 text-sm">
+                          <span
+                            className={`inline-block size-3 rounded-full ${dotClass}`}
+                            aria-hidden
+                          />
+                          {label}
+                        </span>
+                      </label>
+                    ))}
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="map-surface min-h-[calc(100dvh-5rem)] flex-1 pb-[4.5rem] lg:min-h-0 lg:pb-0">
+          {showCoach && isMobile && !formMode && (
+            <div className="absolute inset-x-3 top-[3.25rem] z-[480] rounded-xl border border-[var(--ve-blue)]/20 bg-white/95 px-3 py-2.5 shadow-md backdrop-blur-sm">
+              <p className="pr-16 text-xs leading-relaxed text-slate-700">
+                {t.mobileCoach}
+              </p>
+              <button
+                type="button"
+                onClick={dismissCoach}
+                className="absolute right-2 top-2 rounded-lg bg-[var(--ve-blue)] px-2.5 py-1 text-xs font-semibold text-white"
+              >
+                {t.dismissCoach}
+              </button>
+            </div>
+          )}
+
+          <div className="map-surface min-h-0 flex-1">
             <ReliefMapLoader
               requests={visibleRequests}
               videos={visibleVideos}
@@ -412,101 +450,91 @@ export default function HomePage() {
               pickMode={Boolean(formMode)}
               pickedLocation={pickedLocation}
               flyToTarget={flyToTarget}
-              onPickLocation={(lat, lng) => setPickedLocation({ lat, lng })}
+              onPickLocation={handlePickLocation}
             />
           </div>
 
-          {/* Mobile: fixed report bar */}
           <div
-            className={`mobile-action-bar fixed inset-x-0 bottom-0 z-[600] border-t border-[var(--border)] bg-white/95 px-2 py-2 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] backdrop-blur-md lg:hidden ${
-              formMode ? "hidden" : ""
+            className={`mobile-action-bar fixed inset-x-0 bottom-0 z-[600] lg:hidden ${
+              hideActionBar ? "pointer-events-none translate-y-full opacity-0" : ""
             }`}
             role="toolbar"
             aria-label={t.reportToolbar}
+            aria-hidden={hideActionBar}
           >
-            <div className="mx-auto flex max-w-lg gap-2">
-              <button
-                type="button"
-                onClick={() => setFeedOpen(true)}
-                className="flex min-h-12 flex-1 flex-col items-center justify-center rounded-xl border border-[var(--border)] bg-white px-2 py-1.5 text-xs font-semibold text-[var(--ve-blue)] active:bg-[var(--ve-blue-soft)]"
-              >
-                <span aria-hidden className="text-base leading-none">
-                  📡
-                </span>
-                {t.fabFeed}
-              </button>
-              <button
-                type="button"
-                onClick={() => openForm("video")}
-                className="flex min-h-12 flex-[1.4] flex-col items-center justify-center rounded-xl bg-[var(--ve-blue)] px-2 py-1.5 text-xs font-bold text-white shadow-sm active:bg-[#163366]"
-              >
-                <span aria-hidden className="text-base leading-none">
-                  🎥
-                </span>
-                {t.fabVideo}
-              </button>
-              <button
-                type="button"
-                onClick={() => openForm("request")}
-                className="flex min-h-12 flex-1 flex-col items-center justify-center rounded-xl bg-[var(--ve-red)] px-2 py-1.5 text-xs font-bold text-white shadow-sm active:bg-[#a81830]"
-              >
-                <span aria-hidden className="text-base leading-none">
-                  🔍
-                </span>
-                {t.fabRequest}
-              </button>
+            <div className="border-t border-[var(--border)] bg-white/95 px-2 py-2 shadow-[0_-4px_24px_rgba(0,0,0,0.1)] backdrop-blur-md">
+              <div className="mx-auto flex max-w-lg gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFeedOpen(true)}
+                  className="mobile-fab mobile-fab-secondary"
+                >
+                  <span aria-hidden>📡</span>
+                  {t.fabFeed}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openForm("video")}
+                  className="mobile-fab mobile-fab-primary"
+                >
+                  <span aria-hidden>🎥</span>
+                  {t.fabVideo}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openForm("request")}
+                  className="mobile-fab mobile-fab-danger"
+                >
+                  <span aria-hidden>🔍</span>
+                  {t.fabRequest}
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Desktop: report buttons on map */}
           <div className="absolute bottom-4 right-4 z-[500] hidden flex-col gap-2 lg:flex">
-            <button
-              type="button"
-              onClick={() => openForm("video")}
-              className="rounded-xl bg-[var(--ve-blue)] px-4 py-3 text-sm font-semibold text-white shadow-md hover:bg-[#163366]"
-            >
+            <button type="button" onClick={() => openForm("video")} className="desktop-report-btn bg-[var(--ve-blue)] hover:bg-[#163366]">
               {t.addVideo}
             </button>
-            <button
-              type="button"
-              onClick={() => openForm("request")}
-              className="rounded-xl bg-[var(--ve-red)] px-4 py-3 text-sm font-semibold text-white shadow-md hover:bg-[#a81830]"
-            >
+            <button type="button" onClick={() => openForm("request")} className="desktop-report-btn bg-[var(--ve-red)] hover:bg-[#a81830]">
               {t.addRequest}
             </button>
           </div>
         </section>
 
-        {/* Official feed — side panel on desktop, bottom sheet on mobile */}
         <aside
-          className={`feed-panel order-2 flex w-full flex-col border-[var(--border)] bg-white lg:order-1 lg:w-[340px] lg:shrink-0 lg:border-r ${
-            feedOpen ? "fixed inset-0 z-[700] lg:relative lg:inset-auto lg:z-auto" : "hidden lg:flex"
+          className={`feed-panel flex w-full flex-col border-[var(--border)] bg-white lg:w-[320px] lg:shrink-0 lg:border-r ${
+            feedOpen
+              ? "fixed inset-0 z-[700] lg:relative lg:inset-auto lg:z-auto"
+              : "hidden lg:flex"
           }`}
         >
           {feedOpen && (
-            <div
-              className="absolute inset-0 bg-black/40 lg:hidden"
-              aria-hidden
+            <button
+              type="button"
+              className="absolute inset-0 bg-black/45 lg:hidden"
+              aria-label={t.close}
               onClick={() => setFeedOpen(false)}
             />
           )}
           <div
             className={`relative flex min-h-0 flex-1 flex-col bg-white ${
               feedOpen
-                ? "absolute inset-x-0 bottom-0 max-h-[75dvh] rounded-t-2xl shadow-2xl lg:relative lg:inset-auto lg:max-h-none lg:rounded-none lg:shadow-none"
+                ? "sheet-panel absolute inset-x-0 bottom-0 max-h-[80dvh] rounded-t-2xl shadow-2xl lg:relative lg:inset-auto lg:max-h-none lg:rounded-none lg:shadow-none"
                 : ""
             }`}
           >
-            <div className="flex items-center justify-between border-b border-[var(--border)] px-3 py-2 lg:hidden">
+            <div className="sheet-handle mx-auto mt-2 h-1 w-10 rounded-full bg-slate-300 lg:hidden" aria-hidden />
+            <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3 lg:hidden">
               <h2 className="text-sm font-semibold text-[var(--ve-blue)]">
                 {t.officialFeedTitle}
               </h2>
               <button
                 type="button"
                 onClick={() => setFeedOpen(false)}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-[var(--foreground-muted)]"
+                className="min-h-10 min-w-10 rounded-lg text-sm font-medium text-[var(--foreground-muted)]"
               >
-                {t.close}
+                ✕
               </button>
             </div>
             <OfficialFeed onSelectEvent={focusOfficialEvent} />
@@ -517,222 +545,289 @@ export default function HomePage() {
       {formMode && (
         <>
           <div
-            className="fixed inset-0 z-[800] hidden bg-black/20 lg:block"
+            className="fixed inset-0 z-[800] hidden bg-black/25 lg:block"
             aria-hidden
             onClick={closeForm}
           />
           <aside
             ref={panelRef}
             className={`form-sheet fixed inset-x-0 bottom-0 z-[900] flex flex-col overflow-hidden rounded-t-2xl border border-[var(--border)] bg-white shadow-2xl lg:inset-x-auto lg:bottom-4 lg:right-4 lg:top-4 lg:max-h-none lg:w-[min(100%,26rem)] lg:rounded-xl ${
-              pickedLocation ? "max-h-[90dvh]" : "max-h-[48dvh]"
+              onPickStep ? "form-sheet-pick" : "form-sheet-fill"
             }`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="form-title"
           >
-            <div className="ve-tricolor shrink-0" aria-hidden />
-            <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-              <h2 id="form-title" className="text-base font-semibold text-[var(--ve-blue)] sm:text-lg">
-                {formMode === "request" ? t.addRequest : t.addVideo}
-              </h2>
+            <div className="sheet-handle mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-slate-300 lg:hidden" aria-hidden />
+            <div className="ve-tricolor hidden shrink-0 lg:block" aria-hidden />
+
+            <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-4 py-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)] lg:hidden">
+                  {onPickStep ? t.pickLocationTitle : t.fillDetailsTitle}
+                </p>
+                <h2 id="form-title" className="text-base font-semibold text-[var(--ve-blue)]">
+                  {formMode === "request" ? t.addRequest : t.addVideo}
+                </h2>
+              </div>
               <button
                 type="button"
                 onClick={closeForm}
-                className="min-h-11 min-w-11 rounded-lg text-sm font-medium text-[var(--foreground-muted)] active:bg-[var(--panel-bg)]"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-lg text-[var(--foreground-muted)] active:bg-[var(--panel-bg)]"
                 aria-label={t.close}
               >
                 ✕
               </button>
             </div>
 
-            <div
-              className={`shrink-0 border-b px-4 py-3 text-sm font-medium ${
-                pickedLocation
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                  : "border-[var(--ve-yellow)] bg-[var(--ve-yellow-soft)] text-[#8a6d00]"
-              }`}
-              role="status"
-              aria-live="polite"
-            >
-              {pickedLocation ? t.locationSelected : t.clickMapHint}
-            </div>
-
-            <div className="overflow-y-auto overscroll-contain px-4 py-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
-              {message && (
+            {onPickStep ? (
+              <div className="flex flex-col gap-3 px-4 py-4">
                 <p
-                  className={`mb-3 text-sm ${
-                    message.type === "success" ? "text-emerald-700" : "text-red-700"
+                  className={`rounded-xl px-4 py-3 text-sm font-medium leading-relaxed ${
+                    pickedLocation
+                      ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200"
+                      : "bg-[var(--ve-yellow-soft)] text-[#8a6d00] ring-1 ring-[var(--ve-yellow)]/40"
                   }`}
-                  role="alert"
+                  role="status"
                 >
-                  {message.text}
+                  {pickedLocation ? t.locationSelected : t.pickLocationHint}
                 </p>
-              )}
-
-              {formMode === "request" ? (
-                <form onSubmit={handleRequestSubmit} className="space-y-4">
-                  <div>
-                    <label htmlFor="person_name" className="block text-sm font-medium">
-                      {t.personName} <span aria-hidden>*</span>
-                    </label>
-                    <input
-                      ref={firstFieldRef}
-                      id="person_name"
-                      name="person_name"
-                      required
-                      minLength={2}
-                      autoComplete="name"
-                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
-                      placeholder={t.personNamePlaceholder}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="last_seen_area" className="block text-sm font-medium">
-                      {t.lastSeenArea} <span aria-hidden>*</span>
-                    </label>
-                    <input
-                      id="last_seen_area"
-                      name="last_seen_area"
-                      required
-                      minLength={2}
-                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
-                      placeholder={t.lastSeenPlaceholder}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="description" className="block text-sm font-medium">
-                      {t.description}
-                    </label>
-                    <textarea
-                      id="description"
-                      name="description"
-                      rows={2}
-                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
-                      placeholder={t.descriptionPlaceholder}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="contact_info" className="block text-sm font-medium">
-                      {t.contactInfo} <span aria-hidden>*</span>
-                    </label>
-                    <input
-                      id="contact_info"
-                      name="contact_info"
-                      required
-                      minLength={3}
-                      autoComplete="tel"
-                      inputMode="tel"
-                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
-                      placeholder={t.contactPlaceholder}
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={!pickedLocation || submitting}
-                    className="w-full min-h-12 rounded-xl bg-[var(--ve-red)] px-4 py-3 text-base font-semibold text-white active:bg-[#a81830] disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
-                  >
-                    {submitting ? t.submitting : t.submit}
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleVideoSubmit} className="space-y-4">
-                  <div>
-                    <label htmlFor="video_url" className="block text-sm font-medium">
-                      {t.videoUrl} <span aria-hidden>*</span>
-                    </label>
-                    <input
-                      ref={firstFieldRef}
-                      id="video_url"
-                      name="video_url"
-                      type="url"
-                      required
-                      inputMode="url"
-                      autoComplete="url"
-                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
-                      placeholder={t.videoUrlPlaceholder}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="area_name" className="block text-sm font-medium">
-                      {t.areaName} <span aria-hidden>*</span>
-                    </label>
-                    <input
-                      id="area_name"
-                      name="area_name"
-                      required
-                      minLength={2}
-                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
-                      placeholder={t.areaPlaceholder}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="title" className="block text-sm font-medium">
-                      {t.videoTitle} <span aria-hidden>*</span>
-                    </label>
-                    <input
-                      id="title"
-                      name="title"
-                      required
-                      minLength={3}
-                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
-                      placeholder={t.videoTitlePlaceholder}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="situation_type" className="block text-sm font-medium">
-                      {t.situationType}
-                    </label>
-                    <select
-                      id="situation_type"
-                      name="situation_type"
-                      defaultValue="damage"
-                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
+                <p className="text-xs leading-relaxed text-[var(--foreground-muted)]">
+                  {t.clickMapHint}
+                </p>
+                <button
+                  type="button"
+                  disabled={!pickedLocation}
+                  onClick={goToFillStep}
+                  className="min-h-12 w-full rounded-xl bg-[var(--ve-blue)] text-base font-bold text-white disabled:cursor-not-allowed disabled:opacity-40 active:bg-[#163366]"
+                >
+                  {t.continueButton}
+                </button>
+              </div>
+            ) : (
+              <>
+                {mobileWizard && (
+                  <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--panel-bg)] px-4 py-2">
+                    <button
+                      type="button"
+                      onClick={backToPickStep}
+                      className="text-sm font-medium text-[var(--ve-blue)] underline"
                     >
-                      {(Object.keys(t.situationTypes) as SituationType[]).map((key) => (
-                        <option key={key} value={key}>
-                          {t.situationTypes[key]}
-                        </option>
-                      ))}
-                    </select>
+                      ← {t.changeLocation}
+                    </button>
+                    <span className="text-xs text-emerald-700">{t.locationSelected}</span>
                   </div>
-                  <div>
-                    <label htmlFor="source_url" className="block text-sm font-medium">
-                      {t.sourceUrl}
-                    </label>
-                    <input
-                      id="source_url"
-                      name="source_url"
-                      type="url"
-                      inputMode="url"
-                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
-                      placeholder={t.sourceUrlPlaceholder}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="video_description" className="block text-sm font-medium">
-                      {t.description}
-                    </label>
-                    <textarea
-                      id="video_description"
-                      name="description"
-                      rows={2}
-                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
-                      placeholder={t.descriptionPlaceholder}
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={!pickedLocation || submitting}
-                    className="w-full min-h-12 rounded-xl bg-[var(--ve-blue)] px-4 py-3 text-base font-semibold text-white active:bg-[#163366] disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+                )}
+
+                {!mobileWizard && (
+                  <div
+                    className={`shrink-0 border-b px-4 py-3 text-sm font-medium ${
+                      pickedLocation
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                        : "border-[var(--ve-yellow)] bg-[var(--ve-yellow-soft)] text-[#8a6d00]"
+                    }`}
+                    role="status"
                   >
-                    {submitting ? t.submitting : t.submit}
-                  </button>
-                </form>
-              )}
-            </div>
+                    {pickedLocation ? t.locationSelected : t.clickMapHint}
+                  </div>
+                )}
+
+                <div className="form-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3">
+                  {message && (
+                    <p
+                      className={`mb-3 rounded-lg px-3 py-2 text-sm ${
+                        message.type === "success"
+                          ? "bg-emerald-50 text-emerald-800"
+                          : "bg-red-50 text-red-800"
+                      }`}
+                      role="alert"
+                    >
+                      {message.text}
+                    </p>
+                  )}
+
+                  {formMode === "request" ? (
+                    <form onSubmit={handleRequestSubmit} className="space-y-4">
+                      <Field label={t.personName} htmlFor="person_name" required>
+                        <input
+                          ref={firstFieldRef}
+                          id="person_name"
+                          name="person_name"
+                          required
+                          minLength={2}
+                          autoComplete="name"
+                          className="input-field input-touch"
+                          placeholder={t.personNamePlaceholder}
+                        />
+                      </Field>
+                      <Field label={t.lastSeenArea} htmlFor="last_seen_area" required>
+                        <input
+                          id="last_seen_area"
+                          name="last_seen_area"
+                          required
+                          minLength={2}
+                          className="input-field input-touch"
+                          placeholder={t.lastSeenPlaceholder}
+                        />
+                      </Field>
+                      <Field label={t.description} htmlFor="description">
+                        <textarea
+                          id="description"
+                          name="description"
+                          rows={2}
+                          className="input-field input-touch"
+                          placeholder={t.descriptionPlaceholder}
+                        />
+                      </Field>
+                      <Field label={t.contactInfo} htmlFor="contact_info" required>
+                        <input
+                          id="contact_info"
+                          name="contact_info"
+                          required
+                          minLength={3}
+                          autoComplete="tel"
+                          inputMode="tel"
+                          className="input-field input-touch"
+                          placeholder={t.contactPlaceholder}
+                        />
+                      </Field>
+                      <SubmitButton
+                        color="red"
+                        disabled={!pickedLocation || submitting}
+                        loading={submitting}
+                        label={submitting ? t.submitting : t.submit}
+                      />
+                    </form>
+                  ) : (
+                    <form onSubmit={handleVideoSubmit} className="space-y-4">
+                      <Field label={t.videoUrl} htmlFor="video_url" required>
+                        <input
+                          ref={firstFieldRef}
+                          id="video_url"
+                          name="video_url"
+                          type="url"
+                          required
+                          inputMode="url"
+                          autoComplete="url"
+                          className="input-field input-touch"
+                          placeholder={t.videoUrlPlaceholder}
+                        />
+                      </Field>
+                      <Field label={t.areaName} htmlFor="area_name" required>
+                        <input
+                          id="area_name"
+                          name="area_name"
+                          required
+                          minLength={2}
+                          className="input-field input-touch"
+                          placeholder={t.areaPlaceholder}
+                        />
+                      </Field>
+                      <Field label={t.videoTitle} htmlFor="title" required>
+                        <input
+                          id="title"
+                          name="title"
+                          required
+                          minLength={3}
+                          className="input-field input-touch"
+                          placeholder={t.videoTitlePlaceholder}
+                        />
+                      </Field>
+                      <Field label={t.situationType} htmlFor="situation_type">
+                        <select
+                          id="situation_type"
+                          name="situation_type"
+                          defaultValue="damage"
+                          className="input-field input-touch"
+                        >
+                          {(Object.keys(t.situationTypes) as SituationType[]).map((key) => (
+                            <option key={key} value={key}>
+                              {t.situationTypes[key]}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label={t.sourceUrl} htmlFor="source_url">
+                        <input
+                          id="source_url"
+                          name="source_url"
+                          type="url"
+                          inputMode="url"
+                          className="input-field input-touch"
+                          placeholder={t.sourceUrlPlaceholder}
+                        />
+                      </Field>
+                      <Field label={t.description} htmlFor="video_description">
+                        <textarea
+                          id="video_description"
+                          name="description"
+                          rows={2}
+                          className="input-field input-touch"
+                          placeholder={t.descriptionPlaceholder}
+                        />
+                      </Field>
+                      <SubmitButton
+                        color="blue"
+                        disabled={!pickedLocation || submitting}
+                        loading={submitting}
+                        label={submitting ? t.submitting : t.submit}
+                      />
+                    </form>
+                  )}
+                </div>
+              </>
+            )}
           </aside>
         </>
       )}
-    </>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  htmlFor,
+  required,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label htmlFor={htmlFor} className="block text-sm font-medium">
+        {label} {required && <span aria-hidden>*</span>}
+      </label>
+      <div className="mt-1.5">{children}</div>
+    </div>
+  );
+}
+
+function SubmitButton({
+  color,
+  disabled,
+  loading,
+  label,
+}: {
+  color: "red" | "blue";
+  disabled: boolean;
+  loading: boolean;
+  label: string;
+}) {
+  const bg =
+    color === "red"
+      ? "bg-[var(--ve-red)] active:bg-[#a81830]"
+      : "bg-[var(--ve-blue)] active:bg-[#163366]";
+  return (
+    <button
+      type="submit"
+      disabled={disabled}
+      className={`min-h-12 w-full rounded-xl px-4 py-3 text-base font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 ${bg}`}
+      aria-busy={loading}
+    >
+      {label}
+    </button>
   );
 }

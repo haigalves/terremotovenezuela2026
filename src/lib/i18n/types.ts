@@ -26,6 +26,13 @@ export type Messages = {
   successRequest: string;
   successVideo: string;
   clickMapHint: string;
+  pickLocationHint: string;
+  pickLocationTitle: string;
+  fillDetailsTitle: string;
+  continueButton: string;
+  changeLocation: string;
+  mobileCoach: string;
+  dismissCoach: string;
   locationSelected: string;
   personName: string;
   personNamePlaceholder: string;
