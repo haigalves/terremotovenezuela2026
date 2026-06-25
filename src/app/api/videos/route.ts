@@ -114,29 +114,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid source URL" }, { status: 400 });
   }
 
-  const { data, error } = await supabase
-    .from("verified_situations")
-    .insert({
-      lat,
-      lng,
-      area_name: area_name.trim(),
-      title: title.trim(),
-      description:
-        typeof description === "string" ? description.trim() || null : null,
-      video_url: video_url.trim(),
-      source_url:
-        typeof source_url === "string" && source_url.trim()
-          ? source_url.trim()
-          : null,
-      situation_type,
-      approved: false,
-    })
-    .select()
-    .single();
+  const { error } = await supabase.from("verified_situations").insert({
+    lat,
+    lng,
+    area_name: area_name.trim(),
+    title: title.trim(),
+    description:
+      typeof description === "string" ? description.trim() || null : null,
+    video_url: video_url.trim(),
+    source_url:
+      typeof source_url === "string" && source_url.trim()
+        ? source_url.trim()
+        : null,
+    situation_type,
+    approved: false,
+  });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ data }, { status: 201 });
+  return NextResponse.json({ success: true }, { status: 201 });
 }

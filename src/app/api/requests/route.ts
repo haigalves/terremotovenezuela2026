@@ -91,25 +91,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
 
-  const { data, error } = await supabase
-    .from("check_requests")
-    .insert({
-      lat,
-      lng,
-      person_name: person_name.trim(),
-      last_seen_area: last_seen_area.trim(),
-      description:
-        typeof description === "string" ? description.trim() || null : null,
-      contact_info: contact_info.trim(),
-      status,
-      approved: false,
-    })
-    .select()
-    .single();
+  const { error } = await supabase.from("check_requests").insert({
+    lat,
+    lng,
+    person_name: person_name.trim(),
+    last_seen_area: last_seen_area.trim(),
+    description:
+      typeof description === "string" ? description.trim() || null : null,
+    contact_info: contact_info.trim(),
+    status,
+    approved: false,
+  });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ data }, { status: 201 });
+  return NextResponse.json({ success: true }, { status: 201 });
 }

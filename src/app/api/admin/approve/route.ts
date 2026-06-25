@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { verifyAdmin } from "@/lib/admin";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-type ItemType = "request" | "video";
-
 export async function PATCH(request: Request) {
   const authError = verifyAdmin(request);
   if (authError) return authError;
