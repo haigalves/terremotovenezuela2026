@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
+import { siteClosedResponse } from "@/lib/site-closed";
 import { verifyAdmin } from "@/lib/admin";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { CheckRequest, VerifiedSituation } from "@/lib/types";
 
 export async function GET(request: Request) {
+  const closed = siteClosedResponse();
+  if (closed) return closed;
+
   const authError = verifyAdmin(request);
   if (authError) return authError;
 

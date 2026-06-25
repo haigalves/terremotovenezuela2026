@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { siteClosedResponse } from "@/lib/site-closed";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 import type { SituationType, VerifiedSituation } from "@/lib/types";
 
@@ -31,6 +32,9 @@ function isValidUrl(value: string): boolean {
 }
 
 export async function GET() {
+  const closed = siteClosedResponse();
+  if (closed) return closed;
+
   const supabase = getSupabase();
   if (!supabase) {
     return NextResponse.json({
@@ -60,6 +64,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const closed = siteClosedResponse();
+  if (closed) return closed;
+
   const supabase = getSupabase();
   if (!supabase) {
     return NextResponse.json(

@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
+import { siteClosedResponse } from "@/lib/site-closed";
 import { fetchOfficialFeed } from "@/lib/official-sources";
 import type { OfficialFeedResponse } from "@/lib/official-types";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const closed = siteClosedResponse();
+  if (closed) return closed;
+
   try {
     const { items, sources } = await fetchOfficialFeed();
 

@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
+import { siteClosedResponse } from "@/lib/site-closed";
 import { verifyAdmin } from "@/lib/admin";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export async function PATCH(request: Request) {
+  const closed = siteClosedResponse();
+  if (closed) return closed;
+
   const authError = verifyAdmin(request);
   if (authError) return authError;
 

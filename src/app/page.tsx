@@ -1,5 +1,5 @@
-import HomePage from "@/components/HomePage";
+import ClosedSite from "@/components/ClosedSite";
 
 export default function Page() {
-  return <HomePage />;
+  return <ClosedSite />;
 }
