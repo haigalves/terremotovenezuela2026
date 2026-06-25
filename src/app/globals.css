@@ -87,11 +87,28 @@ body {
 .leaflet-container {
   font-family: inherit;
   z-index: 0;
-  border-radius: 0.5rem;
+  border-radius: 0;
 }
 
-.feed-panel,
-.community-panel {
+.map-surface {
+  height: 100%;
+}
+
+.map-surface .leaflet-container {
+  height: 100%;
+  min-height: inherit;
+  border-radius: 0;
+}
+
+.mobile-action-bar {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+.form-sheet {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.feed-panel {
   background: #ffffff;
   color: var(--foreground);
 }

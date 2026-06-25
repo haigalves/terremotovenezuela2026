@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ReliefMapLoader from "@/components/ReliefMapLoader";
 import OfficialFeed from "@/components/OfficialFeed";
 import SiteHeader from "@/components/SiteHeader";
@@ -16,8 +16,6 @@ import type {
 } from "@/lib/types";
 
 type FormMode = "request" | "video" | null;
-type SidebarTab = "official" | "community";
-type ViewMode = "split" | "map" | "feed";
 
 function isValidUrl(value: string) {
   try {
@@ -29,21 +27,20 @@ function isValidUrl(value: string) {
 }
 
 export default function HomePage() {
-  const { t, locale } = useTranslation();
+  const { t } = useTranslation();
   const [howToOpen, setHowToOpen] = useState(false);
   const [requests, setRequests] = useState<CheckRequest[]>([]);
   const [videos, setVideos] = useState<VerifiedSituation[]>([]);
   const [configured, setConfigured] = useState(true);
-  const [loading, setLoading] = useState(true);
   const [layers, setLayers] = useState<LayerVisibility>({
     requests: true,
     videos: true,
     official: true,
   });
   const [officialEvents, setOfficialEvents] = useState<OfficialFeedItem[]>([]);
-  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("official");
+  const [feedOpen, setFeedOpen] = useState(false);
+  const [layersOpen, setLayersOpen] = useState(false);
   const [formMode, setFormMode] = useState<FormMode>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("feed");
   const [pickedLocation, setPickedLocation] = useState<{
     lat: number;
     lng: number;
@@ -60,20 +57,21 @@ export default function HomePage() {
 
   const panelRef = useRef<HTMLElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
+  const layersRef = useRef<HTMLDivElement>(null);
 
-  const formatDate = useCallback(
-    (iso: string) => {
-      try {
-        return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "es-VE", {
-          dateStyle: "medium",
-          timeStyle: "short",
-        }).format(new Date(iso));
-      } catch {
-        return iso;
-      }
-    },
-    [locale],
-  );
+  async function loadPins() {
+    const [reqRes, vidRes] = await Promise.all([
+      fetch("/api/requests"),
+      fetch("/api/videos"),
+    ]);
+    const reqJson = await reqRes.json();
+    const vidJson = await vidRes.json();
+    return {
+      requests: reqJson.data ?? [],
+      videos: vidJson.data ?? [],
+      configured: reqJson.configured !== false && vidJson.configured !== false,
+    };
+  }
 
   const loadOfficial = useCallback(async () => {
     try {
@@ -87,21 +85,13 @@ export default function HomePage() {
   }, []);
 
   const loadData = useCallback(async () => {
-    setLoading(true);
     try {
-      const [reqRes, vidRes] = await Promise.all([
-        fetch("/api/requests"),
-        fetch("/api/videos"),
-      ]);
-      const reqJson = await reqRes.json();
-      const vidJson = await vidRes.json();
-      setRequests(reqJson.data ?? []);
-      setVideos(vidJson.data ?? []);
-      setConfigured(reqJson.configured !== false && vidJson.configured !== false);
+      const data = await loadPins();
+      setRequests(data.requests);
+      setVideos(data.videos);
+      setConfigured(data.configured);
     } catch {
       setMessage({ type: "error", text: t.errorGeneric });
-    } finally {
-      setLoading(false);
     }
   }, [t.errorGeneric]);
 
@@ -121,13 +111,16 @@ export default function HomePage() {
   }, [formMode]);
 
   useEffect(() => {
-    if (!formMode) return;
+    if (!formMode && !feedOpen) return;
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") closeForm();
+      if (e.key === "Escape") {
+        if (formMode) closeForm();
+        else setFeedOpen(false);
+      }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [formMode]);
+  }, [formMode, feedOpen]);
 
   useEffect(() => {
     if (!howToOpen) return;
@@ -138,7 +131,19 @@ export default function HomePage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [howToOpen]);
 
+  useEffect(() => {
+    if (!layersOpen) return;
+    function onPointerDown(e: PointerEvent) {
+      if (layersRef.current && !layersRef.current.contains(e.target as Node)) {
+        setLayersOpen(false);
+      }
+    }
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => window.removeEventListener("pointerdown", onPointerDown);
+  }, [layersOpen]);
+
   function openForm(mode: FormMode) {
+    setFeedOpen(false);
     setPickedLocation(null);
     setMessage(null);
     setFormMode(mode);
@@ -147,11 +152,6 @@ export default function HomePage() {
   function closeForm() {
     setFormMode(null);
     setPickedLocation(null);
-  }
-
-  function focusPin(lat: number, lng: number) {
-    setFlyToTarget({ lat, lng });
-    setViewMode("split");
   }
 
   async function handleRequestSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -253,7 +253,7 @@ export default function HomePage() {
   function focusOfficialEvent(item: OfficialFeedItem) {
     if (item.lat == null || item.lng == null) return;
     setFlyToTarget({ lat: item.lat, lng: item.lng });
-    setViewMode("split");
+    setFeedOpen(false);
   }
 
   const visibleOfficial = layers.official ? officialEvents : [];
@@ -274,7 +274,7 @@ export default function HomePage() {
 
       {!configured && (
         <div
-          className="border-b border-[var(--ve-yellow)] bg-[var(--ve-yellow-soft)] px-4 py-2 text-center text-sm text-[#8a6d00]"
+          className="border-b border-[var(--ve-yellow)] bg-[var(--ve-yellow-soft)] px-3 py-1.5 text-center text-xs text-[#8a6d00] sm:text-sm"
           role="alert"
         >
           {t.databaseNotConfigured}
@@ -283,7 +283,7 @@ export default function HomePage() {
 
       {message && !formMode && (
         <div
-          className={`border-b px-4 py-2 text-center text-sm ${
+          className={`border-b px-3 py-1.5 text-center text-xs sm:text-sm ${
             message.type === "success"
               ? "border-emerald-200 bg-emerald-50 text-emerald-800"
               : "border-red-200 bg-red-50 text-red-800"
@@ -297,245 +297,113 @@ export default function HomePage() {
 
       <main
         id="main-content"
-        className="flex min-h-0 flex-1 flex-col lg:h-[calc(100vh-5.5rem)] lg:flex-row"
+        className="relative flex min-h-0 flex-1 flex-col lg:flex-row lg:h-[calc(100dvh-4rem)]"
       >
-        <aside
-          className={`feed-panel flex w-full flex-col border-r border-[var(--border)] lg:w-[380px] ${
-            viewMode === "map" ? "hidden lg:flex" : "flex"
-          }`}
+        {/* Map — first and full-height on mobile */}
+        <section
+          className="relative order-1 flex min-h-0 flex-1 flex-col lg:order-2"
+          aria-label={t.mapView}
         >
-          <div
-            className="flex border-b border-[var(--border)] bg-[var(--panel-bg)] lg:hidden"
-            role="tablist"
-            aria-label="Vista"
-          >
-            {(
-              [
-                ["feed", t.tabOfficial],
-                ["split", t.tabCommunity],
-                ["map", t.tabMap],
-              ] as const
-            ).map(([mode, label]) => (
+          <div className="map-toolbar absolute left-2 right-2 top-2 z-[500] flex flex-wrap items-start justify-between gap-2 sm:left-3 sm:right-3 sm:top-3">
+            <div className="flex flex-wrap gap-1.5">
               <button
-                key={mode}
                 type="button"
-                role="tab"
-                aria-selected={viewMode === mode}
-                onClick={() => setViewMode(mode)}
-                className={`flex-1 px-3 py-2.5 text-xs font-semibold ${
-                  viewMode === mode ? "tab-active" : "tab-inactive"
-                }`}
+                onClick={() =>
+                  setFlyToTarget({ lat: EPICENTER.lat, lng: EPICENTER.lng })
+                }
+                className="rounded-lg border border-[var(--border)] bg-white/95 px-2.5 py-2 text-xs font-medium text-[var(--ve-blue)] shadow-sm backdrop-blur-sm active:scale-[0.98] sm:px-3"
               >
-                {label}
+                {t.focusEpicenter}
               </button>
-            ))}
-          </div>
-
-          <div className="hidden border-b border-[var(--border)] lg:flex" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={sidebarTab === "official"}
-              onClick={() => setSidebarTab("official")}
-              className={`flex-1 px-3 py-2.5 text-xs font-semibold ${
-                sidebarTab === "official" ? "tab-active" : "tab-inactive"
-              }`}
-            >
-              {t.tabOfficial}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={sidebarTab === "community"}
-              onClick={() => setSidebarTab("community")}
-              className={`flex-1 px-3 py-2.5 text-xs font-semibold ${
-                sidebarTab === "community" ? "tab-active" : "tab-inactive"
-              }`}
-            >
-              {t.tabCommunity}
-            </button>
-          </div>
-
-          <div
-            className={`flex min-h-0 flex-1 flex-col overflow-hidden ${
-              sidebarTab === "official" ? "flex" : "hidden lg:flex"
-            } ${viewMode === "feed" ? "!flex" : viewMode === "map" ? "hidden" : ""}`}
-          >
-            <OfficialFeed onSelectEvent={focusOfficialEvent} />
-          </div>
-
-          <div
-            className={`community-panel flex min-h-0 flex-1 flex-col overflow-hidden ${
-              sidebarTab === "community" ? "flex" : "hidden lg:flex"
-            } ${viewMode === "split" ? "flex lg:flex" : viewMode === "feed" ? "hidden" : viewMode === "map" ? "hidden" : ""}`}
-          >
-            <div className="border-b border-[var(--border)] bg-[var(--panel-bg)] px-3 py-2.5">
-              <h2 className="text-sm font-semibold text-[var(--ve-blue)]">
-                {t.communityFeedTitle}
-              </h2>
-              <p className="text-xs text-[var(--foreground-muted)]">
-                {t.communityFeedSubtitle}
-              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  setFlyToTarget({ lat: CARACAS.lat, lng: CARACAS.lng })
+                }
+                className="rounded-lg border border-[var(--border)] bg-white/95 px-2.5 py-2 text-xs font-medium text-slate-600 shadow-sm backdrop-blur-sm active:scale-[0.98] sm:px-3"
+              >
+                {t.focusCaracas}
+              </button>
             </div>
 
-            <div className="space-y-3 border-b border-[var(--border)] p-3">
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => openForm("request")}
-                  className="btn-ve-primary rounded-lg px-3 py-2 text-sm font-medium"
+            <div ref={layersRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setLayersOpen((o) => !o)}
+                aria-expanded={layersOpen}
+                aria-haspopup="true"
+                className="rounded-lg border border-[var(--border)] bg-white/95 px-2.5 py-2 text-xs font-semibold text-[var(--ve-blue)] shadow-sm backdrop-blur-sm active:scale-[0.98] sm:px-3"
+              >
+                {t.layersButton}
+              </button>
+              {layersOpen && (
+                <div
+                  className="absolute right-0 top-full z-10 mt-1.5 w-56 rounded-xl border border-[var(--border)] bg-white p-3 text-sm shadow-lg"
+                  role="group"
+                  aria-label={t.legend}
                 >
-                  {t.addRequest}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openForm("video")}
-                  className="btn-ve-secondary rounded-lg px-3 py-2 text-sm font-medium"
-                >
-                  {t.addVideo}
-                </button>
-              </div>
-
-              <fieldset className="text-sm">
-                <legend className="mb-1.5 text-xs font-semibold text-[var(--foreground-muted)]">
-                  {t.legend}
-                </legend>
-                <div className="flex flex-col gap-1.5">
-                  <label className="flex cursor-pointer items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={layers.official}
-                      onChange={(e) =>
-                        setLayers((l) => ({ ...l, official: e.target.checked }))
-                      }
-                      className="size-3.5"
-                    />
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="inline-block size-2.5 rounded-full bg-[var(--ve-red)]" aria-hidden />
-                      {t.legendOfficial} ({officialEvents.filter((e) => e.lat != null).length})
-                    </span>
-                  </label>
-                  <label className="flex cursor-pointer items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={layers.requests}
-                      onChange={(e) =>
-                        setLayers((l) => ({ ...l, requests: e.target.checked }))
-                      }
-                      className="size-3.5"
-                    />
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="inline-block size-2.5 rounded-full bg-[var(--ve-yellow)]" aria-hidden />
-                      {t.legendRequest} ({requests.length})
-                    </span>
-                  </label>
-                  <label className="flex cursor-pointer items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={layers.videos}
-                      onChange={(e) =>
-                        setLayers((l) => ({ ...l, videos: e.target.checked }))
-                      }
-                      className="size-3.5"
-                    />
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="inline-block size-2.5 rounded-full bg-[var(--ve-blue)] ring-1 ring-[var(--border)]" aria-hidden />
-                      {t.legendVideo} ({videos.length})
-                    </span>
-                  </label>
+                  <p className="mb-2 text-xs font-semibold text-[var(--foreground-muted)]">
+                    {t.legend}
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={layers.official}
+                        onChange={(e) =>
+                          setLayers((l) => ({ ...l, official: e.target.checked }))
+                        }
+                        className="size-4"
+                      />
+                      <span className="inline-flex items-center gap-1.5">
+                        <span
+                          className="inline-block size-2.5 rounded-full bg-[var(--ve-red)]"
+                          aria-hidden
+                        />
+                        {t.legendOfficial}
+                      </span>
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={layers.requests}
+                        onChange={(e) =>
+                          setLayers((l) => ({ ...l, requests: e.target.checked }))
+                        }
+                        className="size-4"
+                      />
+                      <span className="inline-flex items-center gap-1.5">
+                        <span
+                          className="inline-block size-2.5 rounded-full bg-[var(--ve-yellow)]"
+                          aria-hidden
+                        />
+                        {t.legendRequest}
+                      </span>
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={layers.videos}
+                        onChange={(e) =>
+                          setLayers((l) => ({ ...l, videos: e.target.checked }))
+                        }
+                        className="size-4"
+                      />
+                      <span className="inline-flex items-center gap-1.5">
+                        <span
+                          className="inline-block size-2.5 rounded-full bg-[var(--ve-blue)] ring-1 ring-[var(--border)]"
+                          aria-hidden
+                        />
+                        {t.legendVideo}
+                      </span>
+                    </label>
+                  </div>
                 </div>
-              </fieldset>
-            </div>
-
-            <div className="flex-1 overflow-y-auto" aria-busy={loading}>
-              {loading ? (
-                <p className="p-3 text-sm text-[var(--foreground-muted)]">{t.loading}</p>
-              ) : visibleRequests.length === 0 && visibleVideos.length === 0 ? (
-                <p className="p-3 text-sm text-[var(--foreground-muted)]">{t.noData}</p>
-              ) : (
-                <ul>
-                  {visibleRequests.map((req) => (
-                    <li key={req.id} className="border-b border-[var(--border)] px-3 py-3 hover:bg-[var(--panel-bg)]">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-800">
-                            {req.person_name}
-                          </p>
-                          <p className="mt-0.5 text-xs text-[var(--foreground-muted)]">
-                            {req.last_seen_area}
-                          </p>
-                          <p className="mt-1 text-[11px] text-[var(--foreground-muted)]">
-                            {t.status[req.status]} · {formatDate(req.created_at)}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => focusPin(req.lat, req.lng)}
-                          className="shrink-0 text-xs font-medium text-[var(--ve-blue)] underline hover:text-[var(--ve-red)]"
-                        >
-                          {t.goToLocation}
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                  {visibleVideos.map((video) => (
-                    <li key={video.id} className="border-b border-[var(--border)] px-3 py-3 hover:bg-[var(--panel-bg)]">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-800">{video.title}</p>
-                          <p className="mt-0.5 text-xs text-[var(--foreground-muted)]">
-                            {video.area_name}
-                          </p>
-                          <p className="mt-1 flex gap-2 text-xs">
-                            <a
-                              href={video.video_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[var(--ve-blue)] underline hover:text-[var(--ve-red)]"
-                            >
-                              {t.watchVideo}
-                            </a>
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => focusPin(video.lat, video.lng)}
-                          className="shrink-0 text-xs font-medium text-[var(--ve-blue)] underline hover:text-[var(--ve-red)]"
-                        >
-                          {t.goToLocation}
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
               )}
             </div>
           </div>
-        </aside>
 
-        <section
-          className={`relative min-h-[50vh] flex-1 bg-[var(--panel-bg)] p-2 lg:p-3 ${
-            viewMode === "feed" ? "hidden lg:block" : "block"
-          }`}
-          aria-label={t.mapView}
-        >
-          <div className="absolute left-5 top-5 z-[500] flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setFlyToTarget({ lat: EPICENTER.lat, lng: EPICENTER.lng })}
-              className="rounded-lg border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--ve-blue)] shadow-sm hover:bg-[var(--ve-blue-soft)]"
-            >
-              {t.focusEpicenter}
-            </button>
-            <button
-              type="button"
-              onClick={() => setFlyToTarget({ lat: CARACAS.lat, lng: CARACAS.lng })}
-              className="rounded-lg border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm hover:bg-white"
-            >
-              {t.focusCaracas}
-            </button>
-          </div>
-          <div className="h-[50vh] overflow-hidden rounded-lg border border-[var(--border)] bg-white shadow-sm lg:h-[calc(100%-0.5rem)]">
+          <div className="map-surface min-h-[calc(100dvh-5rem)] flex-1 pb-[4.5rem] lg:min-h-0 lg:pb-0">
             <ReliefMapLoader
               requests={visibleRequests}
               videos={visibleVideos}
@@ -547,208 +415,323 @@ export default function HomePage() {
               onPickLocation={(lat, lng) => setPickedLocation({ lat, lng })}
             />
           </div>
+
+          {/* Mobile: fixed report bar */}
+          <div
+            className={`mobile-action-bar fixed inset-x-0 bottom-0 z-[600] border-t border-[var(--border)] bg-white/95 px-2 py-2 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] backdrop-blur-md lg:hidden ${
+              formMode ? "hidden" : ""
+            }`}
+            role="toolbar"
+            aria-label={t.reportToolbar}
+          >
+            <div className="mx-auto flex max-w-lg gap-2">
+              <button
+                type="button"
+                onClick={() => setFeedOpen(true)}
+                className="flex min-h-12 flex-1 flex-col items-center justify-center rounded-xl border border-[var(--border)] bg-white px-2 py-1.5 text-xs font-semibold text-[var(--ve-blue)] active:bg-[var(--ve-blue-soft)]"
+              >
+                <span aria-hidden className="text-base leading-none">
+                  📡
+                </span>
+                {t.fabFeed}
+              </button>
+              <button
+                type="button"
+                onClick={() => openForm("video")}
+                className="flex min-h-12 flex-[1.4] flex-col items-center justify-center rounded-xl bg-[var(--ve-blue)] px-2 py-1.5 text-xs font-bold text-white shadow-sm active:bg-[#163366]"
+              >
+                <span aria-hidden className="text-base leading-none">
+                  🎥
+                </span>
+                {t.fabVideo}
+              </button>
+              <button
+                type="button"
+                onClick={() => openForm("request")}
+                className="flex min-h-12 flex-1 flex-col items-center justify-center rounded-xl bg-[var(--ve-red)] px-2 py-1.5 text-xs font-bold text-white shadow-sm active:bg-[#a81830]"
+              >
+                <span aria-hidden className="text-base leading-none">
+                  🔍
+                </span>
+                {t.fabRequest}
+              </button>
+            </div>
+          </div>
+
+          {/* Desktop: report buttons on map */}
+          <div className="absolute bottom-4 right-4 z-[500] hidden flex-col gap-2 lg:flex">
+            <button
+              type="button"
+              onClick={() => openForm("video")}
+              className="rounded-xl bg-[var(--ve-blue)] px-4 py-3 text-sm font-semibold text-white shadow-md hover:bg-[#163366]"
+            >
+              {t.addVideo}
+            </button>
+            <button
+              type="button"
+              onClick={() => openForm("request")}
+              className="rounded-xl bg-[var(--ve-red)] px-4 py-3 text-sm font-semibold text-white shadow-md hover:bg-[#a81830]"
+            >
+              {t.addRequest}
+            </button>
+          </div>
         </section>
+
+        {/* Official feed — side panel on desktop, bottom sheet on mobile */}
+        <aside
+          className={`feed-panel order-2 flex w-full flex-col border-[var(--border)] bg-white lg:order-1 lg:w-[340px] lg:shrink-0 lg:border-r ${
+            feedOpen ? "fixed inset-0 z-[700] lg:relative lg:inset-auto lg:z-auto" : "hidden lg:flex"
+          }`}
+        >
+          {feedOpen && (
+            <div
+              className="absolute inset-0 bg-black/40 lg:hidden"
+              aria-hidden
+              onClick={() => setFeedOpen(false)}
+            />
+          )}
+          <div
+            className={`relative flex min-h-0 flex-1 flex-col bg-white ${
+              feedOpen
+                ? "absolute inset-x-0 bottom-0 max-h-[75dvh] rounded-t-2xl shadow-2xl lg:relative lg:inset-auto lg:max-h-none lg:rounded-none lg:shadow-none"
+                : ""
+            }`}
+          >
+            <div className="flex items-center justify-between border-b border-[var(--border)] px-3 py-2 lg:hidden">
+              <h2 className="text-sm font-semibold text-[var(--ve-blue)]">
+                {t.officialFeedTitle}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setFeedOpen(false)}
+                className="rounded-lg px-3 py-2 text-sm font-medium text-[var(--foreground-muted)]"
+              >
+                {t.close}
+              </button>
+            </div>
+            <OfficialFeed onSelectEvent={focusOfficialEvent} />
+          </div>
+        </aside>
       </main>
 
       {formMode && (
-        <aside
-          ref={panelRef}
-          className="fixed bottom-0 right-0 top-auto z-[1500] flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl border border-[var(--border)] bg-white shadow-xl sm:bottom-4 sm:right-4 sm:top-4 sm:max-h-none sm:w-[min(100%,24rem)] sm:rounded-xl"
-          role="dialog"
-          aria-modal="false"
-          aria-labelledby="form-title"
-        >
-          <div className="ve-tricolor shrink-0 rounded-t-2xl sm:rounded-t-xl" aria-hidden />
-          <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-            <h2 id="form-title" className="text-lg font-semibold text-[var(--ve-blue)]">
-              {formMode === "request" ? t.addRequest : t.addVideo}
-            </h2>
-            <button
-              type="button"
-              onClick={closeForm}
-              className="rounded-md px-3 py-1.5 text-sm font-medium text-[var(--foreground-muted)] hover:bg-[var(--panel-bg)]"
-              aria-label={t.close}
+        <>
+          <div
+            className="fixed inset-0 z-[800] hidden bg-black/20 lg:block"
+            aria-hidden
+            onClick={closeForm}
+          />
+          <aside
+            ref={panelRef}
+            className={`form-sheet fixed inset-x-0 bottom-0 z-[900] flex flex-col overflow-hidden rounded-t-2xl border border-[var(--border)] bg-white shadow-2xl lg:inset-x-auto lg:bottom-4 lg:right-4 lg:top-4 lg:max-h-none lg:w-[min(100%,26rem)] lg:rounded-xl ${
+              pickedLocation ? "max-h-[90dvh]" : "max-h-[48dvh]"
+            }`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="form-title"
+          >
+            <div className="ve-tricolor shrink-0" aria-hidden />
+            <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
+              <h2 id="form-title" className="text-base font-semibold text-[var(--ve-blue)] sm:text-lg">
+                {formMode === "request" ? t.addRequest : t.addVideo}
+              </h2>
+              <button
+                type="button"
+                onClick={closeForm}
+                className="min-h-11 min-w-11 rounded-lg text-sm font-medium text-[var(--foreground-muted)] active:bg-[var(--panel-bg)]"
+                aria-label={t.close}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div
+              className={`shrink-0 border-b px-4 py-3 text-sm font-medium ${
+                pickedLocation
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : "border-[var(--ve-yellow)] bg-[var(--ve-yellow-soft)] text-[#8a6d00]"
+              }`}
+              role="status"
+              aria-live="polite"
             >
-              {t.close}
-            </button>
-          </div>
-
-          <div className="overflow-y-auto px-4 py-3">
-            <p className="mb-3 text-sm text-[var(--foreground-muted)]" role="status" aria-live="polite">
               {pickedLocation ? t.locationSelected : t.clickMapHint}
-            </p>
+            </div>
 
-            {message && (
-              <p
-                className={`mb-3 text-sm ${
-                  message.type === "success" ? "text-emerald-700" : "text-red-700"
-                }`}
-                role="alert"
-              >
-                {message.text}
-              </p>
-            )}
-
-            {formMode === "request" ? (
-              <form onSubmit={handleRequestSubmit} className="space-y-3">
-              <div>
-                <label htmlFor="person_name" className="block text-sm font-medium">
-                  {t.personName} <span aria-hidden>*</span>
-                </label>
-                <input
-                  ref={firstFieldRef}
-                  id="person_name"
-                  name="person_name"
-                  required
-                  minLength={2}
-                  autoComplete="name"
-                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
-                  placeholder={t.personNamePlaceholder}
-                />
-              </div>
-              <div>
-                <label htmlFor="last_seen_area" className="block text-sm font-medium">
-                  {t.lastSeenArea} <span aria-hidden>*</span>
-                </label>
-                <input
-                  id="last_seen_area"
-                  name="last_seen_area"
-                  required
-                  minLength={2}
-                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
-                  placeholder={t.lastSeenPlaceholder}
-                />
-              </div>
-              <div>
-                <label htmlFor="description" className="block text-sm font-medium">
-                  {t.description}
-                </label>
-                <textarea
-                  id="description"
-                  name="description"
-                  rows={3}
-                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
-                  placeholder={t.descriptionPlaceholder}
-                />
-              </div>
-              <div>
-                <label htmlFor="contact_info" className="block text-sm font-medium">
-                  {t.contactInfo} <span aria-hidden>*</span>
-                </label>
-                <input
-                  id="contact_info"
-                  name="contact_info"
-                  required
-                  minLength={3}
-                  autoComplete="tel"
-                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
-                  placeholder={t.contactPlaceholder}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={!pickedLocation || submitting}
-                className="w-full rounded-lg bg-[var(--ve-red)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#a81830] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {submitting ? t.submitting : t.submit}
-              </button>
-            </form>
-          ) : formMode === "video" ? (
-            <form onSubmit={handleVideoSubmit} className="space-y-3">
-              <div>
-                <label htmlFor="area_name" className="block text-sm font-medium">
-                  {t.areaName} <span aria-hidden>*</span>
-                </label>
-                <input
-                  ref={firstFieldRef}
-                  id="area_name"
-                  name="area_name"
-                  required
-                  minLength={2}
-                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
-                  placeholder={t.areaPlaceholder}
-                />
-              </div>
-              <div>
-                <label htmlFor="title" className="block text-sm font-medium">
-                  {t.videoTitle} <span aria-hidden>*</span>
-                </label>
-                <input
-                  id="title"
-                  name="title"
-                  required
-                  minLength={3}
-                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
-                  placeholder={t.videoTitlePlaceholder}
-                />
-              </div>
-              <div>
-                <label htmlFor="situation_type" className="block text-sm font-medium">
-                  {t.situationType}
-                </label>
-                <select
-                  id="situation_type"
-                  name="situation_type"
-                  defaultValue="damage"
-                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
+            <div className="overflow-y-auto overscroll-contain px-4 py-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              {message && (
+                <p
+                  className={`mb-3 text-sm ${
+                    message.type === "success" ? "text-emerald-700" : "text-red-700"
+                  }`}
+                  role="alert"
                 >
-                  {(Object.keys(t.situationTypes) as SituationType[]).map((key) => (
-                    <option key={key} value={key}>
-                      {t.situationTypes[key]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="video_url" className="block text-sm font-medium">
-                  {t.videoUrl} <span aria-hidden>*</span>
-                </label>
-                <input
-                  id="video_url"
-                  name="video_url"
-                  type="url"
-                  required
-                  inputMode="url"
-                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
-                  placeholder={t.videoUrlPlaceholder}
-                />
-              </div>
-              <div>
-                <label htmlFor="source_url" className="block text-sm font-medium">
-                  {t.sourceUrl}
-                </label>
-                <input
-                  id="source_url"
-                  name="source_url"
-                  type="url"
-                  inputMode="url"
-                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
-                  placeholder={t.sourceUrlPlaceholder}
-                />
-              </div>
-              <div>
-                <label htmlFor="video_description" className="block text-sm font-medium">
-                  {t.description}
-                </label>
-                <textarea
-                  id="video_description"
-                  name="description"
-                  rows={3}
-                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
-                  placeholder={t.descriptionPlaceholder}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={!pickedLocation || submitting}
-                className="w-full rounded-lg bg-[var(--ve-blue)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#163366] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {submitting ? t.submitting : t.submit}
-              </button>
-            </form>
-            ) : null}
-          </div>
-        </aside>
+                  {message.text}
+                </p>
+              )}
+
+              {formMode === "request" ? (
+                <form onSubmit={handleRequestSubmit} className="space-y-4">
+                  <div>
+                    <label htmlFor="person_name" className="block text-sm font-medium">
+                      {t.personName} <span aria-hidden>*</span>
+                    </label>
+                    <input
+                      ref={firstFieldRef}
+                      id="person_name"
+                      name="person_name"
+                      required
+                      minLength={2}
+                      autoComplete="name"
+                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
+                      placeholder={t.personNamePlaceholder}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="last_seen_area" className="block text-sm font-medium">
+                      {t.lastSeenArea} <span aria-hidden>*</span>
+                    </label>
+                    <input
+                      id="last_seen_area"
+                      name="last_seen_area"
+                      required
+                      minLength={2}
+                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
+                      placeholder={t.lastSeenPlaceholder}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="description" className="block text-sm font-medium">
+                      {t.description}
+                    </label>
+                    <textarea
+                      id="description"
+                      name="description"
+                      rows={2}
+                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
+                      placeholder={t.descriptionPlaceholder}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="contact_info" className="block text-sm font-medium">
+                      {t.contactInfo} <span aria-hidden>*</span>
+                    </label>
+                    <input
+                      id="contact_info"
+                      name="contact_info"
+                      required
+                      minLength={3}
+                      autoComplete="tel"
+                      inputMode="tel"
+                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
+                      placeholder={t.contactPlaceholder}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={!pickedLocation || submitting}
+                    className="w-full min-h-12 rounded-xl bg-[var(--ve-red)] px-4 py-3 text-base font-semibold text-white active:bg-[#a81830] disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+                  >
+                    {submitting ? t.submitting : t.submit}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleVideoSubmit} className="space-y-4">
+                  <div>
+                    <label htmlFor="video_url" className="block text-sm font-medium">
+                      {t.videoUrl} <span aria-hidden>*</span>
+                    </label>
+                    <input
+                      ref={firstFieldRef}
+                      id="video_url"
+                      name="video_url"
+                      type="url"
+                      required
+                      inputMode="url"
+                      autoComplete="url"
+                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
+                      placeholder={t.videoUrlPlaceholder}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="area_name" className="block text-sm font-medium">
+                      {t.areaName} <span aria-hidden>*</span>
+                    </label>
+                    <input
+                      id="area_name"
+                      name="area_name"
+                      required
+                      minLength={2}
+                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
+                      placeholder={t.areaPlaceholder}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="title" className="block text-sm font-medium">
+                      {t.videoTitle} <span aria-hidden>*</span>
+                    </label>
+                    <input
+                      id="title"
+                      name="title"
+                      required
+                      minLength={3}
+                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
+                      placeholder={t.videoTitlePlaceholder}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="situation_type" className="block text-sm font-medium">
+                      {t.situationType}
+                    </label>
+                    <select
+                      id="situation_type"
+                      name="situation_type"
+                      defaultValue="damage"
+                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
+                    >
+                      {(Object.keys(t.situationTypes) as SituationType[]).map((key) => (
+                        <option key={key} value={key}>
+                          {t.situationTypes[key]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="source_url" className="block text-sm font-medium">
+                      {t.sourceUrl}
+                    </label>
+                    <input
+                      id="source_url"
+                      name="source_url"
+                      type="url"
+                      inputMode="url"
+                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
+                      placeholder={t.sourceUrlPlaceholder}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="video_description" className="block text-sm font-medium">
+                      {t.description}
+                    </label>
+                    <textarea
+                      id="video_description"
+                      name="description"
+                      rows={2}
+                      className="input-field mt-1 w-full rounded-lg px-3 py-3 text-base sm:py-2 sm:text-sm"
+                      placeholder={t.descriptionPlaceholder}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={!pickedLocation || submitting}
+                    className="w-full min-h-12 rounded-xl bg-[var(--ve-blue)] px-4 py-3 text-base font-semibold text-white active:bg-[#163366] disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+                  >
+                    {submitting ? t.submitting : t.submit}
+                  </button>
+                </form>
+              )}
+            </div>
+          </aside>
+        </>
       )}
     </>
   );

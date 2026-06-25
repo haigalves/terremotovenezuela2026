@@ -124,7 +124,7 @@ export default function ReliefMap({
   );
 
   return (
-    <div className="relative h-full min-h-[320px] w-full">
+    <div className="relative h-full min-h-[280px] w-full">
       <p id={mapLabelId} className="sr-only">
         {t.mapRegion}. {pickMode ? t.clickMapHint : ""}
       </p>

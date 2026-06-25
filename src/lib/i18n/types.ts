@@ -15,7 +15,6 @@ export type Messages = {
   mapRegion: string;
   addRequest: string;
   addVideo: string;
-  listView: string;
   mapView: string;
   loading: string;
   noData: string;
@@ -81,11 +80,12 @@ export type Messages = {
   justNow: string;
   minutesAgo: (n: number) => string;
   hoursAgo: (n: number) => string;
-  communityFeedTitle: string;
-  communityFeedSubtitle: string;
+  fabFeed: string;
+  fabVideo: string;
+  fabRequest: string;
+  layersButton: string;
+  reportToolbar: string;
   tabOfficial: string;
-  tabCommunity: string;
-  tabMap: string;
   adminTitle: string;
   adminSubtitle: string;
   adminPassword: string;
