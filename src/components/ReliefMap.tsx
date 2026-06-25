@@ -37,9 +37,9 @@ function createPinIcon(color: string, label: string) {
   });
 }
 
-const requestIcon = createPinIcon("#ffcc00", t.legendRequest);
-const videoIcon = createPinIcon("#00247d", t.legendVideo);
-const officialIcon = createPinIcon("#cf142b", t.legendOfficial);
+const requestIcon = createPinIcon("#e6b800", t.legendRequest);
+const videoIcon = createPinIcon("#1e4080", t.legendVideo);
+const officialIcon = createPinIcon("#c41e3a", t.legendOfficial);
 
 function formatDate(iso: string) {
   try {
@@ -126,8 +126,8 @@ export default function ReliefMap({
         aria-labelledby={mapLabelId}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
         <FlyToPin target={flyToTarget} />
@@ -277,7 +277,7 @@ export default function ReliefMap({
           role="status"
           aria-live="polite"
         >
-          <span className="rounded-full bg-[var(--ve-blue)] px-4 py-2 text-sm font-medium text-[var(--ve-yellow)] shadow-lg ring-2 ring-[var(--ve-yellow)]">
+          <span className="rounded-full bg-white px-4 py-2 text-sm font-medium text-[var(--ve-blue)] shadow-md ring-1 ring-[var(--border)]">
             {t.clickMapHint}
           </span>
         </div>

@@ -23,9 +23,9 @@ function formatRelativeTime(iso: string) {
 
 function sourceStyles(source: OfficialFeedItem["source"]) {
   if (source === "USGS") {
-    return "bg-[var(--ve-red)] text-white";
+    return "bg-[var(--ve-red-soft)] text-[var(--ve-red)] ring-1 ring-[var(--ve-red)]/20";
   }
-  return "bg-[var(--ve-yellow)] text-[var(--ve-blue-dark)]";
+  return "bg-[var(--ve-yellow-soft)] text-[#8a6d00] ring-1 ring-[var(--ve-yellow)]/30";
 }
 
 export interface OfficialFeedProps {
@@ -68,12 +68,14 @@ export default function OfficialFeed({
       className={`flex flex-col ${compact ? "" : "min-h-0 flex-1"}`}
       aria-label={t.officialFeedTitle}
     >
-      <div className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
+      <div className="flex items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--panel-bg)] px-3 py-2.5">
         <div>
-          <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--ve-yellow)]">
+          <h2 className="text-sm font-semibold text-[var(--ve-blue)]">
             {t.officialFeedTitle}
           </h2>
-          <p className="text-[11px] text-white/70">{t.officialFeedSubtitle}</p>
+          <p className="text-xs text-[var(--foreground-muted)]">
+            {t.officialFeedSubtitle}
+          </p>
         </div>
         <button
           type="button"
@@ -81,26 +83,34 @@ export default function OfficialFeed({
             setLoading(true);
             load();
           }}
-          className="rounded border border-white/20 px-2 py-1 text-[11px] font-medium text-white hover:bg-white/10"
+          className="rounded-md border border-[var(--border)] bg-white px-2 py-1 text-xs text-[var(--foreground-muted)] hover:bg-[var(--panel-bg)]"
           aria-label={t.refreshFeed}
         >
           ↻
         </button>
       </div>
 
-      <div className="flex gap-1 border-b border-white/10 px-3 py-1.5 text-[10px]">
+      <div className="flex gap-1.5 border-b border-[var(--border)] px-3 py-2 text-[11px]">
         <span
-          className={`rounded px-1.5 py-0.5 ${sources.usgs ? "bg-[var(--ve-red)]/90 text-white" : "bg-white/10 text-white/50"}`}
+          className={`rounded-full px-2 py-0.5 ${
+            sources.usgs
+              ? "bg-[var(--ve-red-soft)] text-[var(--ve-red)]"
+              : "bg-[var(--panel-bg)] text-[var(--foreground-muted)]"
+          }`}
         >
           USGS {sources.usgs ? "●" : "○"}
         </span>
         <span
-          className={`rounded px-1.5 py-0.5 ${sources.funvisis ? "bg-[var(--ve-yellow)] text-[var(--ve-blue-dark)]" : "bg-white/10 text-white/50"}`}
+          className={`rounded-full px-2 py-0.5 ${
+            sources.funvisis
+              ? "bg-[var(--ve-yellow-soft)] text-[#8a6d00]"
+              : "bg-[var(--panel-bg)] text-[var(--foreground-muted)]"
+          }`}
         >
           FUNVISIS {sources.funvisis ? "●" : "○"}
         </span>
         {lastUpdate && (
-          <span className="ml-auto text-white/50">
+          <span className="ml-auto text-[var(--foreground-muted)]">
             {formatRelativeTime(lastUpdate)}
           </span>
         )}
@@ -112,9 +122,13 @@ export default function OfficialFeed({
         aria-busy={loading}
       >
         {loading && items.length === 0 ? (
-          <p className="p-3 text-sm text-white/70">{t.loadingOfficial}</p>
+          <p className="p-3 text-sm text-[var(--foreground-muted)]">
+            {t.loadingOfficial}
+          </p>
         ) : items.length === 0 ? (
-          <p className="p-3 text-sm text-white/70">{t.officialFeedEmpty}</p>
+          <p className="p-3 text-sm text-[var(--foreground-muted)]">
+            {t.officialFeedEmpty}
+          </p>
         ) : (
           <ul>
             {items.map((item) => {
@@ -122,40 +136,44 @@ export default function OfficialFeed({
               return (
                 <li
                   key={item.id}
-                  className={`border-b border-white/10 px-3 py-2.5 transition-colors hover:bg-white/5 ${
-                    isMajor ? "border-l-4 border-l-[var(--ve-red)] bg-[var(--ve-red)]/10" : "border-l-4 border-l-transparent"
+                  className={`border-b border-[var(--border)] px-3 py-3 transition-colors hover:bg-[var(--panel-bg)] ${
+                    isMajor
+                      ? "border-l-[3px] border-l-[var(--ve-red)] bg-[var(--ve-red-soft)]/40"
+                      : "border-l-[3px] border-l-transparent"
                   }`}
                 >
                   <div className="flex items-start gap-2">
                     <time
-                      className="shrink-0 font-mono text-[11px] text-[var(--ve-yellow)]"
+                      className="shrink-0 text-[11px] text-[var(--foreground-muted)]"
                       dateTime={item.time}
                     >
                       {formatRelativeTime(item.time)}
                     </time>
                     <span
-                      className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${sourceStyles(item.source)}`}
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${sourceStyles(item.source)}`}
                     >
                       {item.source}
                     </span>
                     {item.magnitude != null && (
-                      <span className="ml-auto shrink-0 font-bold text-white">
+                      <span className="ml-auto shrink-0 text-sm font-semibold text-[var(--ve-red)]">
                         M{item.magnitude.toFixed(1)}
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-sm font-medium leading-snug text-white">
+                  <p className="mt-1.5 text-sm font-medium leading-snug text-slate-800">
                     {item.title}
                   </p>
                   {item.summary && (
-                    <p className="mt-0.5 text-xs text-white/65">{item.summary}</p>
+                    <p className="mt-0.5 text-xs text-[var(--foreground-muted)]">
+                      {item.summary}
+                    </p>
                   )}
-                  <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <div className="mt-2 flex flex-wrap gap-3 text-xs">
                     {item.lat != null && item.lng != null && onSelectEvent && (
                       <button
                         type="button"
                         onClick={() => onSelectEvent(item)}
-                        className="font-medium text-[var(--ve-yellow)] underline hover:text-white"
+                        className="font-medium text-[var(--ve-blue)] underline hover:text-[var(--ve-red)]"
                       >
                         {t.showOnMap}
                       </button>
@@ -164,7 +182,7 @@ export default function OfficialFeed({
                       href={item.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-medium text-white/80 underline hover:text-white"
+                      className="font-medium text-[var(--foreground-muted)] underline hover:text-[var(--ve-blue)]"
                     >
                       {t.openSource}
                     </a>

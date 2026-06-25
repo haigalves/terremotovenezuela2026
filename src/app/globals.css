@@ -2,15 +2,18 @@
 @import "leaflet/dist/leaflet.css";
 
 :root {
-  --ve-yellow: #ffcc00;
-  --ve-blue: #00247d;
-  --ve-blue-dark: #001a5c;
-  --ve-red: #cf142b;
-  --ve-red-dark: #a81022;
-  --background: #001a5c;
-  --foreground: #f8fafc;
-  --panel-bg: #00247d;
-  --focus-ring: #ffcc00;
+  --ve-yellow: #e6b800;
+  --ve-yellow-soft: #fef9e7;
+  --ve-blue: #1e4080;
+  --ve-blue-soft: #eef2f8;
+  --ve-red: #c41e3a;
+  --ve-red-soft: #fdf2f4;
+  --background: #ffffff;
+  --foreground: #334155;
+  --foreground-muted: #64748b;
+  --border: #e2e8f0;
+  --panel-bg: #f8fafc;
+  --focus-ring: #1e4080;
 }
 
 @theme inline {
@@ -69,7 +72,7 @@ body {
 }
 
 .ve-tricolor {
-  height: 4px;
+  height: 3px;
   background: linear-gradient(
     to right,
     var(--ve-yellow) 0%,
@@ -84,16 +87,13 @@ body {
 .leaflet-container {
   font-family: inherit;
   z-index: 0;
+  border-radius: 0.5rem;
 }
 
-.feed-panel {
-  background: var(--panel-bg);
-  color: #fff;
-}
-
+.feed-panel,
 .community-panel {
-  background: #0f2744;
-  color: #fff;
+  background: #ffffff;
+  color: var(--foreground);
 }
 
 .btn-ve-primary {
@@ -102,15 +102,42 @@ body {
 }
 
 .btn-ve-primary:hover {
-  background: var(--ve-red-dark);
+  background: #a81830;
 }
 
 .btn-ve-secondary {
-  background: var(--ve-blue);
-  color: #fff;
-  border: 1px solid var(--ve-yellow);
+  background: #fff;
+  color: var(--ve-blue);
+  border: 1px solid var(--border);
 }
 
 .btn-ve-secondary:hover {
-  background: var(--ve-blue-dark);
+  background: var(--ve-blue-soft);
+  border-color: var(--ve-blue);
+}
+
+.input-field {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--foreground);
+}
+
+.input-field:focus {
+  border-color: var(--ve-blue);
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(30 64 128 / 0.12);
+}
+
+.tab-active {
+  color: var(--ve-blue);
+  border-bottom: 2px solid var(--ve-blue);
+  background: var(--ve-blue-soft);
+}
+
+.tab-inactive {
+  color: var(--foreground-muted);
+}
+
+.tab-inactive:hover {
+  background: var(--panel-bg);
 }

@@ -97,16 +97,16 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="mx-auto min-h-screen max-w-3xl bg-[var(--ve-blue-dark)] px-4 py-8 text-white">
-      <div className="ve-tricolor mb-4 rounded" aria-hidden />
+    <div className="mx-auto min-h-screen max-w-3xl bg-white px-4 py-8 text-slate-700">
+      <div className="ve-tricolor mb-6 rounded" aria-hidden />
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--ve-yellow)]">{t.adminTitle}</h1>
-          <p className="mt-1 text-sm text-white/70">{t.adminSubtitle}</p>
+          <h1 className="text-2xl font-bold text-[var(--ve-blue)]">{t.adminTitle}</h1>
+          <p className="mt-1 text-sm text-[var(--foreground-muted)]">{t.adminSubtitle}</p>
         </div>
         <Link
           href="/"
-          className="text-sm font-medium text-[var(--ve-yellow)] underline hover:text-white"
+          className="text-sm font-medium text-[var(--ve-blue)] underline hover:text-[var(--ve-red)]"
         >
           {t.adminBackToMap}
         </Link>
@@ -132,7 +132,7 @@ export default function AdminPage() {
           </div>
           <button
             type="submit"
-            className="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+            className="w-full rounded-lg bg-[var(--ve-blue)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#163366]"
           >
             {t.adminLogin}
           </button>

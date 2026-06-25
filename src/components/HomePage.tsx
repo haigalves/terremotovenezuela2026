@@ -241,15 +241,15 @@ export default function HomePage() {
 
       <div className="ve-tricolor" aria-hidden />
 
-      <header className="bg-[var(--ve-blue)] text-white shadow-md">
-        <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <header className="border-b border-[var(--border)] bg-white shadow-sm">
+        <div className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-[var(--ve-yellow)] sm:text-2xl">
+            <h1 className="text-xl font-bold tracking-tight text-[var(--ve-blue)] sm:text-2xl">
               {t.headerTitle}
             </h1>
-            <p className="text-sm text-white/85">{t.headerSubtitle}</p>
+            <p className="text-sm text-[var(--foreground-muted)]">{t.headerSubtitle}</p>
           </div>
-          <p className="max-w-xl text-xs text-white/75 sm:text-sm" role="note">
+          <p className="max-w-xl text-xs text-[var(--foreground-muted)] sm:text-sm" role="note">
             {t.disclaimer}
           </p>
         </div>
@@ -257,7 +257,7 @@ export default function HomePage() {
 
       {!configured && (
         <div
-          className="border-b border-[var(--ve-yellow)] bg-[var(--ve-yellow)] px-4 py-2 text-center text-sm font-medium text-[var(--ve-blue-dark)]"
+          className="border-b border-[var(--ve-yellow)] bg-[var(--ve-yellow-soft)] px-4 py-2 text-center text-sm text-[#8a6d00]"
           role="alert"
         >
           {t.databaseNotConfigured}
@@ -268,8 +268,8 @@ export default function HomePage() {
         <div
           className={`border-b px-4 py-2 text-center text-sm ${
             message.type === "success"
-              ? "border-[var(--ve-yellow)] bg-[var(--ve-yellow)]/20 text-[var(--ve-yellow)]"
-              : "border-[var(--ve-red)] bg-[var(--ve-red)]/20 text-white"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-red-200 bg-red-50 text-red-800"
           }`}
           role="status"
           aria-live="polite"
@@ -283,12 +283,12 @@ export default function HomePage() {
         className="flex min-h-0 flex-1 flex-col lg:h-[calc(100vh-5.5rem)] lg:flex-row"
       >
         <aside
-          className={`feed-panel flex w-full flex-col border-r border-white/10 lg:w-[380px] ${
+          className={`feed-panel flex w-full flex-col border-r border-[var(--border)] lg:w-[380px] ${
             viewMode === "map" ? "hidden lg:flex" : "flex"
           }`}
         >
           <div
-            className="flex border-b border-white/10 lg:hidden"
+            className="flex border-b border-[var(--border)] bg-[var(--panel-bg)] lg:hidden"
             role="tablist"
             aria-label="Vista"
           >
@@ -305,10 +305,8 @@ export default function HomePage() {
                 role="tab"
                 aria-selected={viewMode === mode}
                 onClick={() => setViewMode(mode)}
-                className={`flex-1 px-3 py-2.5 text-xs font-bold uppercase tracking-wide ${
-                  viewMode === mode
-                    ? "bg-[var(--ve-red)] text-white"
-                    : "bg-[var(--ve-blue-dark)] text-white/70"
+                className={`flex-1 px-3 py-2.5 text-xs font-semibold ${
+                  viewMode === mode ? "tab-active" : "tab-inactive"
                 }`}
               >
                 {label}
@@ -316,16 +314,14 @@ export default function HomePage() {
             ))}
           </div>
 
-          <div className="hidden border-b border-white/10 lg:flex" role="tablist">
+          <div className="hidden border-b border-[var(--border)] lg:flex" role="tablist">
             <button
               type="button"
               role="tab"
               aria-selected={sidebarTab === "official"}
               onClick={() => setSidebarTab("official")}
-              className={`flex-1 px-3 py-2.5 text-xs font-bold uppercase tracking-wide ${
-                sidebarTab === "official"
-                  ? "bg-[var(--ve-red)] text-white"
-                  : "text-white/70 hover:bg-white/5"
+              className={`flex-1 px-3 py-2.5 text-xs font-semibold ${
+                sidebarTab === "official" ? "tab-active" : "tab-inactive"
               }`}
             >
               {t.tabOfficial}
@@ -335,10 +331,8 @@ export default function HomePage() {
               role="tab"
               aria-selected={sidebarTab === "community"}
               onClick={() => setSidebarTab("community")}
-              className={`flex-1 px-3 py-2.5 text-xs font-bold uppercase tracking-wide ${
-                sidebarTab === "community"
-                  ? "bg-[var(--ve-yellow)] text-[var(--ve-blue-dark)]"
-                  : "text-white/70 hover:bg-white/5"
+              className={`flex-1 px-3 py-2.5 text-xs font-semibold ${
+                sidebarTab === "community" ? "tab-active" : "tab-inactive"
               }`}
             >
               {t.tabCommunity}
@@ -358,33 +352,35 @@ export default function HomePage() {
               sidebarTab === "community" ? "flex" : "hidden lg:flex"
             } ${viewMode === "split" ? "flex lg:flex" : viewMode === "feed" ? "hidden" : viewMode === "map" ? "hidden" : ""}`}
           >
-            <div className="border-b border-white/10 px-3 py-2">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--ve-yellow)]">
+            <div className="border-b border-[var(--border)] bg-[var(--panel-bg)] px-3 py-2.5">
+              <h2 className="text-sm font-semibold text-[var(--ve-blue)]">
                 {t.communityFeedTitle}
               </h2>
-              <p className="text-[11px] text-white/70">{t.communityFeedSubtitle}</p>
+              <p className="text-xs text-[var(--foreground-muted)]">
+                {t.communityFeedSubtitle}
+              </p>
             </div>
 
-            <div className="space-y-2 border-b border-white/10 p-3">
+            <div className="space-y-3 border-b border-[var(--border)] p-3">
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => openForm("request")}
-                  className="btn-ve-primary rounded px-3 py-2 text-xs font-bold uppercase tracking-wide"
+                  className="btn-ve-primary rounded-lg px-3 py-2 text-sm font-medium"
                 >
                   {t.addRequest}
                 </button>
                 <button
                   type="button"
                   onClick={() => openForm("video")}
-                  className="btn-ve-secondary rounded px-3 py-2 text-xs font-bold uppercase tracking-wide"
+                  className="btn-ve-secondary rounded-lg px-3 py-2 text-sm font-medium"
                 >
                   {t.addVideo}
                 </button>
               </div>
 
-              <fieldset className="text-xs">
-                <legend className="mb-1 font-semibold text-[var(--ve-yellow)]">
+              <fieldset className="text-sm">
+                <legend className="mb-1.5 text-xs font-semibold text-[var(--foreground-muted)]">
                   {t.legend}
                 </legend>
                 <div className="flex flex-col gap-1.5">
@@ -426,7 +422,7 @@ export default function HomePage() {
                       className="size-3.5"
                     />
                     <span className="inline-flex items-center gap-1.5">
-                      <span className="inline-block size-2.5 rounded-full bg-[var(--ve-blue)] ring-1 ring-white" aria-hidden />
+                      <span className="inline-block size-2.5 rounded-full bg-[var(--ve-blue)] ring-1 ring-[var(--border)]" aria-hidden />
                       {t.legendVideo} ({videos.length})
                     </span>
                   </label>
@@ -436,27 +432,29 @@ export default function HomePage() {
 
             <div className="flex-1 overflow-y-auto" aria-busy={loading}>
               {loading ? (
-                <p className="p-3 text-sm text-white/70">{t.loading}</p>
+                <p className="p-3 text-sm text-[var(--foreground-muted)]">{t.loading}</p>
               ) : visibleRequests.length === 0 && visibleVideos.length === 0 ? (
-                <p className="p-3 text-sm text-white/70">{t.noData}</p>
+                <p className="p-3 text-sm text-[var(--foreground-muted)]">{t.noData}</p>
               ) : (
                 <ul>
                   {visibleRequests.map((req) => (
-                    <li key={req.id} className="border-b border-white/10 px-3 py-2.5 hover:bg-white/5">
+                    <li key={req.id} className="border-b border-[var(--border)] px-3 py-3 hover:bg-[var(--panel-bg)]">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="text-sm font-semibold text-[var(--ve-yellow)]">
+                          <p className="text-sm font-semibold text-slate-800">
                             {req.person_name}
                           </p>
-                          <p className="mt-0.5 text-xs text-white/80">{req.last_seen_area}</p>
-                          <p className="mt-1 text-[10px] text-white/50">
+                          <p className="mt-0.5 text-xs text-[var(--foreground-muted)]">
+                            {req.last_seen_area}
+                          </p>
+                          <p className="mt-1 text-[11px] text-[var(--foreground-muted)]">
                             {t.status[req.status]} · {formatDate(req.created_at)}
                           </p>
                         </div>
                         <button
                           type="button"
                           onClick={() => focusPin(req.lat, req.lng)}
-                          className="shrink-0 text-[10px] font-bold uppercase text-[var(--ve-yellow)] underline"
+                          className="shrink-0 text-xs font-medium text-[var(--ve-blue)] underline hover:text-[var(--ve-red)]"
                         >
                           {t.goToLocation}
                         </button>
@@ -464,17 +462,19 @@ export default function HomePage() {
                     </li>
                   ))}
                   {visibleVideos.map((video) => (
-                    <li key={video.id} className="border-b border-white/10 px-3 py-2.5 hover:bg-white/5">
+                    <li key={video.id} className="border-b border-[var(--border)] px-3 py-3 hover:bg-[var(--panel-bg)]">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="text-sm font-semibold text-white">{video.title}</p>
-                          <p className="mt-0.5 text-xs text-white/80">{video.area_name}</p>
-                          <p className="mt-1 flex gap-2 text-[10px]">
+                          <p className="text-sm font-semibold text-slate-800">{video.title}</p>
+                          <p className="mt-0.5 text-xs text-[var(--foreground-muted)]">
+                            {video.area_name}
+                          </p>
+                          <p className="mt-1 flex gap-2 text-xs">
                             <a
                               href={video.video_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-[var(--ve-yellow)] underline"
+                              className="text-[var(--ve-blue)] underline hover:text-[var(--ve-red)]"
                             >
                               {t.watchVideo}
                             </a>
@@ -483,7 +483,7 @@ export default function HomePage() {
                         <button
                           type="button"
                           onClick={() => focusPin(video.lat, video.lng)}
-                          className="shrink-0 text-[10px] font-bold uppercase text-[var(--ve-yellow)] underline"
+                          className="shrink-0 text-xs font-medium text-[var(--ve-blue)] underline hover:text-[var(--ve-red)]"
                         >
                           {t.goToLocation}
                         </button>
@@ -497,28 +497,28 @@ export default function HomePage() {
         </aside>
 
         <section
-          className={`relative min-h-[50vh] flex-1 bg-[var(--ve-blue-dark)] ${
+          className={`relative min-h-[50vh] flex-1 bg-[var(--panel-bg)] p-2 lg:p-3 ${
             viewMode === "feed" ? "hidden lg:block" : "block"
           }`}
           aria-label={t.mapView}
         >
-          <div className="absolute left-3 top-3 z-[500] flex flex-wrap gap-2">
+          <div className="absolute left-5 top-5 z-[500] flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => setFlyToTarget({ lat: EPICENTER.lat, lng: EPICENTER.lng })}
-              className="rounded border border-[var(--ve-yellow)] bg-[var(--ve-blue)]/90 px-2.5 py-1 text-[11px] font-bold uppercase text-[var(--ve-yellow)] backdrop-blur hover:bg-[var(--ve-blue)]"
+              className="rounded-lg border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--ve-blue)] shadow-sm hover:bg-[var(--ve-blue-soft)]"
             >
               {t.focusEpicenter}
             </button>
             <button
               type="button"
               onClick={() => setFlyToTarget({ lat: CARACAS.lat, lng: CARACAS.lng })}
-              className="rounded border border-white/30 bg-[var(--ve-blue)]/90 px-2.5 py-1 text-[11px] font-bold uppercase text-white backdrop-blur hover:bg-[var(--ve-blue)]"
+              className="rounded-lg border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm hover:bg-white"
             >
               {t.focusCaracas}
             </button>
           </div>
-          <div className="h-[50vh] lg:h-full">
+          <div className="h-[50vh] overflow-hidden rounded-lg border border-[var(--border)] bg-white shadow-sm lg:h-[calc(100%-0.5rem)]">
             <ReliefMapLoader
               requests={visibleRequests}
               videos={visibleVideos}
@@ -536,19 +536,20 @@ export default function HomePage() {
       {formMode && (
         <aside
           ref={panelRef}
-          className="fixed bottom-0 right-0 top-auto z-[1500] flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl border border-[var(--ve-yellow)] bg-[var(--ve-blue)] text-white shadow-2xl sm:bottom-4 sm:right-4 sm:top-4 sm:max-h-none sm:w-[min(100%,24rem)] sm:rounded-xl"
+          className="fixed bottom-0 right-0 top-auto z-[1500] flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl border border-[var(--border)] bg-white shadow-xl sm:bottom-4 sm:right-4 sm:top-4 sm:max-h-none sm:w-[min(100%,24rem)] sm:rounded-xl"
           role="dialog"
           aria-modal="false"
           aria-labelledby="form-title"
         >
-          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-            <h2 id="form-title" className="text-lg font-semibold text-[var(--ve-yellow)]">
+          <div className="ve-tricolor shrink-0 rounded-t-2xl sm:rounded-t-xl" aria-hidden />
+          <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
+            <h2 id="form-title" className="text-lg font-semibold text-[var(--ve-blue)]">
               {formMode === "request" ? t.addRequest : t.addVideo}
             </h2>
             <button
               type="button"
               onClick={closeForm}
-              className="rounded-md px-3 py-1.5 text-sm font-medium text-white/80 hover:bg-white/10"
+              className="rounded-md px-3 py-1.5 text-sm font-medium text-[var(--foreground-muted)] hover:bg-[var(--panel-bg)]"
               aria-label={t.close}
             >
               {t.close}
@@ -556,14 +557,14 @@ export default function HomePage() {
           </div>
 
           <div className="overflow-y-auto px-4 py-3">
-            <p className="mb-3 text-sm text-white/75" role="status" aria-live="polite">
+            <p className="mb-3 text-sm text-[var(--foreground-muted)]" role="status" aria-live="polite">
               {pickedLocation ? t.locationSelected : t.clickMapHint}
             </p>
 
             {message && (
               <p
                 className={`mb-3 text-sm ${
-                  message.type === "success" ? "text-[var(--ve-yellow)]" : "text-red-300"
+                  message.type === "success" ? "text-emerald-700" : "text-red-700"
                 }`}
                 role="alert"
               >
@@ -584,7 +585,7 @@ export default function HomePage() {
                   required
                   minLength={2}
                   autoComplete="name"
-                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
+                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
                   placeholder={t.personNamePlaceholder}
                 />
               </div>
@@ -597,7 +598,7 @@ export default function HomePage() {
                   name="last_seen_area"
                   required
                   minLength={2}
-                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
+                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
                   placeholder={t.lastSeenPlaceholder}
                 />
               </div>
@@ -609,7 +610,7 @@ export default function HomePage() {
                   id="description"
                   name="description"
                   rows={3}
-                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
+                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
                   placeholder={t.descriptionPlaceholder}
                 />
               </div>
@@ -623,14 +624,14 @@ export default function HomePage() {
                   required
                   minLength={3}
                   autoComplete="tel"
-                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
+                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
                   placeholder={t.contactPlaceholder}
                 />
               </div>
               <button
                 type="submit"
                 disabled={!pickedLocation || submitting}
-                className="w-full rounded-lg bg-[var(--ve-red)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--ve-red-dark)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-lg bg-[var(--ve-red)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#a81830] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting ? t.submitting : t.submit}
               </button>
@@ -647,7 +648,7 @@ export default function HomePage() {
                   name="area_name"
                   required
                   minLength={2}
-                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
+                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
                   placeholder={t.areaPlaceholder}
                 />
               </div>
@@ -660,7 +661,7 @@ export default function HomePage() {
                   name="title"
                   required
                   minLength={3}
-                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
+                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
                   placeholder={t.videoTitlePlaceholder}
                 />
               </div>
@@ -672,7 +673,7 @@ export default function HomePage() {
                   id="situation_type"
                   name="situation_type"
                   defaultValue="damage"
-                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
+                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
                 >
                   {(Object.keys(t.situationTypes) as SituationType[]).map((key) => (
                     <option key={key} value={key}>
@@ -691,7 +692,7 @@ export default function HomePage() {
                   type="url"
                   required
                   inputMode="url"
-                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
+                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
                   placeholder={t.videoUrlPlaceholder}
                 />
               </div>
@@ -704,7 +705,7 @@ export default function HomePage() {
                   name="source_url"
                   type="url"
                   inputMode="url"
-                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
+                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
                   placeholder={t.sourceUrlPlaceholder}
                 />
               </div>
@@ -716,14 +717,14 @@ export default function HomePage() {
                   id="video_description"
                   name="description"
                   rows={3}
-                  className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[var(--ve-yellow)] focus:outline-none focus:ring-2 focus:ring-[var(--ve-yellow)]/30"
+                  className="input-field mt-1 w-full rounded-lg px-3 py-2 text-sm"
                   placeholder={t.descriptionPlaceholder}
                 />
               </div>
               <button
                 type="submit"
                 disabled={!pickedLocation || submitting}
-                className="w-full rounded-lg bg-[var(--ve-yellow)] px-4 py-2.5 text-sm font-semibold text-[var(--ve-blue-dark)] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-lg bg-[var(--ve-blue)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#163366] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting ? t.submitting : t.submit}
               </button>
