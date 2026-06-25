@@ -90,7 +90,6 @@ export type Messages = {
   fabFeed: string;
   fabVideo: string;
   fabRequest: string;
-  layersButton: string;
   reportToolbar: string;
   tabOfficial: string;
   adminTitle: string;

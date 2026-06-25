@@ -42,3 +42,9 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# python monitor daemon
+/monitor/.venv/
+/monitor/state/seen_urls.db
+/monitor/logs/*.log
+/monitor/logs/*.err.log

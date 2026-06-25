@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+state/seen_urls.db
+logs/*.log
+.playwright/

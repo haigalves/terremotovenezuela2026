@@ -6,6 +6,7 @@ import OfficialFeed from "@/components/OfficialFeed";
 import SiteHeader from "@/components/SiteHeader";
 import HowToModal from "@/components/HowToModal";
 import MobileToast from "@/components/MobileToast";
+import MapLegend from "@/components/MapLegend";
 import { useTranslation } from "@/components/LocaleProvider";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { CARACAS, EPICENTER } from "@/lib/constants";
@@ -21,6 +22,12 @@ type FormMode = "request" | "video" | null;
 type FormStep = "pick" | "fill";
 
 const COACH_KEY = "terremoto2026-coach-dismissed";
+
+const ALL_LAYERS: LayerVisibility = {
+  requests: true,
+  videos: true,
+  official: true,
+};
 
 function isValidUrl(value: string) {
   try {
@@ -38,14 +45,8 @@ export default function HomePage() {
   const [requests, setRequests] = useState<CheckRequest[]>([]);
   const [videos, setVideos] = useState<VerifiedSituation[]>([]);
   const [configured, setConfigured] = useState(true);
-  const [layers, setLayers] = useState<LayerVisibility>({
-    requests: true,
-    videos: true,
-    official: true,
-  });
   const [officialEvents, setOfficialEvents] = useState<OfficialFeedItem[]>([]);
   const [feedOpen, setFeedOpen] = useState(false);
-  const [layersOpen, setLayersOpen] = useState(false);
   const [formMode, setFormMode] = useState<FormMode>(null);
   const [formStep, setFormStep] = useState<FormStep>("pick");
   const [showCoach, setShowCoach] = useState(false);
@@ -65,7 +66,6 @@ export default function HomePage() {
 
   const panelRef = useRef<HTMLElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
-  const layersRef = useRef<HTMLDivElement>(null);
 
   const mobileWizard = isMobile && Boolean(formMode);
   const onPickStep = mobileWizard && formStep === "pick";
@@ -156,17 +156,6 @@ export default function HomePage() {
   }, [howToOpen]);
 
   useEffect(() => {
-    if (!layersOpen) return;
-    function onPointerDown(e: PointerEvent) {
-      if (layersRef.current && !layersRef.current.contains(e.target as Node)) {
-        setLayersOpen(false);
-      }
-    }
-    window.addEventListener("pointerdown", onPointerDown);
-    return () => window.removeEventListener("pointerdown", onPointerDown);
-  }, [layersOpen]);
-
-  useEffect(() => {
     if (!message || formMode) return;
     const timer = window.setTimeout(() => setMessage(null), 6000);
     return () => window.clearTimeout(timer);
@@ -179,7 +168,6 @@ export default function HomePage() {
 
   function openForm(mode: FormMode) {
     setFeedOpen(false);
-    setLayersOpen(false);
     setPickedLocation(null);
     setMessage(null);
     setFormStep("pick");
@@ -312,9 +300,9 @@ export default function HomePage() {
     setFeedOpen(false);
   }
 
-  const visibleOfficial = layers.official ? officialEvents : [];
-  const visibleRequests = layers.requests ? requests : [];
-  const visibleVideos = layers.videos ? videos : [];
+  const visibleOfficial = officialEvents;
+  const visibleRequests = requests;
+  const visibleVideos = videos;
   const hideActionBar = Boolean(formMode) || feedOpen;
 
   return (
@@ -373,57 +361,6 @@ export default function HomePage() {
             >
               {t.focusCaracas}
             </button>
-            <div ref={layersRef} className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => setLayersOpen((o) => !o)}
-                aria-expanded={layersOpen}
-                className="map-chip font-semibold text-[var(--ve-blue)]"
-              >
-                {t.layersButton}
-              </button>
-              {layersOpen && (
-                <div
-                  className="absolute right-0 top-full z-20 mt-1.5 w-56 rounded-xl border border-[var(--border)] bg-white p-3 text-sm shadow-xl"
-                  role="group"
-                  aria-label={t.legend}
-                >
-                  <p className="mb-2 text-xs font-semibold text-[var(--foreground-muted)]">
-                    {t.legend}
-                  </p>
-                  <div className="flex flex-col gap-2.5">
-                    {(
-                      [
-                        ["official", t.legendOfficial, "bg-[var(--ve-red)]"],
-                        ["requests", t.legendRequest, "bg-[var(--ve-yellow)]"],
-                        ["videos", t.legendVideo, "bg-[var(--ve-blue)]"],
-                      ] as const
-                    ).map(([key, label, dotClass]) => (
-                      <label
-                        key={key}
-                        className="flex min-h-10 cursor-pointer items-center gap-3"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={layers[key]}
-                          onChange={(e) =>
-                            setLayers((l) => ({ ...l, [key]: e.target.checked }))
-                          }
-                          className="size-5"
-                        />
-                        <span className="inline-flex items-center gap-2 text-sm">
-                          <span
-                            className={`inline-block size-3 rounded-full ${dotClass}`}
-                            aria-hidden
-                          />
-                          {label}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
 
           {showCoach && isMobile && !formMode && (
@@ -442,11 +379,12 @@ export default function HomePage() {
           )}
 
           <div className="map-surface min-h-0 flex-1">
+            <MapLegend />
             <ReliefMapLoader
               requests={visibleRequests}
               videos={visibleVideos}
               officialEvents={visibleOfficial}
-              layers={layers}
+              layers={ALL_LAYERS}
               pickMode={Boolean(formMode)}
               pickedLocation={pickedLocation}
               flyToTarget={flyToTarget}
